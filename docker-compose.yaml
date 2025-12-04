@@ -1,0 +1,205 @@
+# This configuration contains my attempt at creating an all-in-one locally hosted AI
+# setup. 
+# - Includes InvokeAI and OpenWebUI (with Ollama). 
+# - Uses Tailscale for secure remote access.
+# 
+# ArtOfTheSmart.com | 2025-08-30
+
+name: aots-ai-config
+
+services:
+
+# 1st service with Tailscale and GPU access for OpenWebUI
+  ts-open-webui:
+    container_name: ts-open-webui
+    hostname: openwebui
+    image: tailscale/tailscale:latest
+    restart: unless-stopped
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+    volumes:
+      - ts-open-webui:/var/lib/tailscale
+      - /home/user/config:/config
+      - /dev/net/tun:/dev/net/tun
+    environment:
+      - TS_STATE_DIR=/var/lib/tailscale
+      - TS_AUTH_KEY=
+      - TS_USERSPACE=false
+      - TS_SERVE_CONFIG=/config/open-webui.json
+      - "TS_EXTRA_ARGS=--advertise-tags=tag:container --netfilter-mode=off"
+  open-webui:
+    container_name: open-webui
+    image: ghcr.io/open-webui/open-webui:ollama
+    restart: unless-stopped
+    network_mode: service:ts-open-webui
+    depends_on:
+      - ts-open-webui
+    environment:
+      WEBUI_AUTH: "false"
+      port: 1000
+    volumes:
+      - /home/user/ollama:/root/.ollama
+      - /home/user/open-webui:/app/backend/data
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    # ports: 
+    #   - "3000:1000"
+
+
+# 2nd service with Tailscale and GPU access for InvokeAI
+  tailscale-invokeai:
+    container_name: ts-invokeai
+    hostname: invokeai
+    image: tailscale/tailscale:latest
+    restart: unless-stopped
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+    volumes:
+      - ts-invokeai:/var/lib/tailscale
+      - /home/user/config:/config
+      - /dev/net/tun:/dev/net/tun
+    environment:
+      - TS_STATE_DIR=/var/lib/tailscale
+      - TS_AUTH_KEY=
+      - TS_USERSPACE=false
+      - TS_SERVE_CONFIG=/config/invokeai.json
+      - "TS_EXTRA_ARGS=--advertise-tags=tag:container --netfilter-mode=off"
+  invokeai:
+    container_name: invokeai
+    image: ghcr.io/invoke-ai/invokeai:latest
+    restart: unless-stopped
+    network_mode: service:tailscale-invokeai
+    depends_on:
+      - tailscale-invokeai
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    # ports:
+    #  - "9090:9090"
+    volumes:
+      - /home/user/invokeai:/invokeai
+
+# 3rd service with Tailscale and Postgres for n8n
+  tailscale-n8n:
+    container_name: ts-n8n
+    hostname: n8n
+    image: tailscale/tailscale:latest
+    restart: unless-stopped
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+    volumes:
+      - ts-n8n:/var/lib/tailscale
+      - /home/user/config:/config
+      - /dev/net/tun:/dev/net/tun
+    environment:
+      - TS_STATE_DIR=/var/lib/tailscale
+      - TS_AUTH_KEY=
+      - TS_USERSPACE=false
+      - TS_SERVE_CONFIG=/config/n8n.json
+      - "TS_EXTRA_ARGS=--advertise-tags=tag:container --netfilter-mode=off"
+  postgres:
+    image: postgres:16
+    restart: always
+    network_mode: service:tailscale-n8n
+    environment:
+      - POSTGRES_USER
+      - POSTGRES_PASSWORD
+      - POSTGRES_DB
+      - POSTGRES_NON_ROOT_USER
+      - POSTGRES_NON_ROOT_PASSWORD
+      - PGPORT=5432
+    volumes:
+      - db_storage:/var/lib/postgresql/data
+      - ./init-data.sh:/docker-entrypoint-initdb.d/init-data.sh
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -h localhost -U ${POSTGRES_USER} -d ${POSTGRES_DB}']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+  n8n:
+    container_name: n8n
+    image: docker.n8n.io/n8nio/n8n
+    restart: unless-stopped
+    network_mode: service:tailscale-n8n
+    depends_on:
+      tailscale-n8n:
+        condition: service_started
+      postgres:
+        condition: service_healthy
+    environment:
+      - DB_TYPE=postgresdb
+      - DB_POSTGRESDB_HOST=localhost
+      - DB_POSTGRESDB_PORT=5432
+      - DB_POSTGRESDB_DATABASE=${POSTGRES_DB}
+      - DB_POSTGRESDB_USER=${POSTGRES_NON_ROOT_USER}
+      - DB_POSTGRESDB_PASSWORD=${POSTGRES_NON_ROOT_PASSWORD}
+      - N8N_PORT=1002
+    volumes:
+      - n8n_storage:/home/node/.n8n
+
+# 4th service with Tailscale and Ollama (for direct connections)
+  ts-ollama:
+    container_name: ts-ollama
+    hostname: ollama
+    image: tailscale/tailscale:latest
+    restart: unless-stopped
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+    volumes:
+      - ts-ollama:/var/lib/tailscale
+      - /home/user/config:/config
+      - /dev/net/tun:/dev/net/tun
+    environment:
+      - TS_STATE_DIR=/var/lib/tailscale
+      - TS_AUTH_KEY=
+      - TS_USERSPACE=false
+      - TS_SERVE_CONFIG=/config/ollama.json
+      - "TS_EXTRA_ARGS=--advertise-tags=tag:container --netfilter-mode=off"
+  ollama:
+    container_name: ollama
+    image: ollama/ollama:latest
+    restart: unless-stopped
+    network_mode: service:ts-ollama
+    depends_on:
+      - ts-ollama
+    environment:
+      WEBUI_AUTH: "false"
+      port: 11434
+    volumes:
+      - /home/user/ollama:/root/.ollama
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+
+volumes:
+  ts-open-webui: 
+    driver: local
+  ts-invokeai:
+    driver: local
+  ts-n8n:
+    driver: local
+  ts-ollama:
+    driver: local
+  #ts-plex:
+  #  driver: local
+  db_storage:
+    driver: local
+  n8n_storage:
+    driver: local
