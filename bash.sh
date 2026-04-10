@@ -21,12 +21,17 @@ fi
 USER_HOME="$HOME"
 USER_NAME="$(whoami)"
 
+# Cleanup potential broken file from previous failed run
+if [ -f /etc/apt/sources.list.d/github-cli.sources ]; then
+    info "Removing malformed GitHub CLI source file..."
+    $SUDO rm /etc/apt/sources.list.d/github-cli.sources
+fi
+
 info "Updating and upgrading apt packages..."
 $SUDO apt-get update -y
 $SUDO apt-get upgrade -y
 
 info "Installing base utilities and packages..."
-# ripgrep and fd-find are highly recommended for LazyVim
 $SUDO apt-get install -y \
   zsh \
   vim \
@@ -54,7 +59,6 @@ if ! command -v nvim &> /dev/null; then
   $SUDO tar -C /opt -xzf nvim-linux-x86_64.tar.gz
   rm nvim-linux-x86_64.tar.gz
   
-  # Add to shell config if not already present
   if ! grep -q '/opt/nvim-linux-x86_64/bin' "$USER_HOME/.bashrc"; then
     echo 'export PATH="$PATH:/opt/nvim-linux-x86_64/bin"' >> "$USER_HOME/.bashrc"
   fi
@@ -72,7 +76,10 @@ if ! command -v gh &> /dev/null; then
   wget -nv -O "$GH_KEYRING_TMP" https://cli.github.com/packages/githubcli-archive-keyring.gpg
   cat "$GH_KEYRING_TMP" | $SUDO tee /etc/apt/keyrings/githubcli-archive-keyring.gpg > /dev/null
   $SUDO chmod go+r /etc/apt/keyrings/githubcli-archive-keyring.gpg
-  echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | $SUDO tee /etc/apt/sources.list.d/github-cli.sources > /dev/null
+  
+  # FIXED: Changed .sources to .list
+  echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | $SUDO tee /etc/apt/sources.list.d/github-cli.list > /dev/null
+  
   $SUDO apt-get update -y
   $SUDO apt-get install gh -y
   rm -f "$GH_KEYRING_TMP"
@@ -89,7 +96,6 @@ fi
 
 info "Installing Gemini CLI..."
 if ! command -v gemini &> /dev/null; then
-  # Using sudo to install globally
   $SUDO npm install -g @google/gemini-cli
 else
   info "Gemini CLI already installed."
@@ -97,8 +103,7 @@ fi
 
 info "Setting up Oh My Zsh..."
 if [ ! -d "$USER_HOME/.oh-my-zsh" ]; then
-  CHSH=no RUNZSH=no sh -c "
-    $(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)"
+  CHSH=no RUNZSH=no sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)"
 else
   info "Oh My Zsh already installed."
 fi
@@ -109,7 +114,6 @@ if [ ! -d "$ZSH_CUSTOM/themes/powerlevel10k" ]; then
   git clone --depth=1 https://github.com/romkatv/powerlevel10k.git "$ZSH_CUSTOM/themes/powerlevel10k"
   
   if [ -f "$USER_HOME/.zshrc" ]; then
-    # Modify the default robbyrussell theme to powerlevel10k
     sed -i 's/ZSH_THEME=".*"/ZSH_THEME="powerlevel10k\/powerlevel10k"/g' "$USER_HOME/.zshrc"
   fi
 else
