@@ -26,12 +26,10 @@ $SUDO apt-get update -y
 $SUDO apt-get upgrade -y
 
 info "Installing base utilities and packages..."
-# Installing neovim as well since it's required for LazyVim
-# ripgrep and fd-find are also highly recommended for LazyVim
+# ripgrep and fd-find are highly recommended for LazyVim
 $SUDO apt-get install -y \
   zsh \
   vim \
-  neovim \
   python3 \
   python3-pip \
   python3-venv \
@@ -49,6 +47,24 @@ $SUDO apt-get install -y \
   fd-find \
   fontconfig
 
+info "Installing Neovim..."
+if ! command -v nvim &> /dev/null; then
+  curl -LO https://github.com/neovim/neovim/releases/latest/download/nvim-linux-x86_64.tar.gz
+  $SUDO rm -rf /opt/nvim-linux-x86_64
+  $SUDO tar -C /opt -xzf nvim-linux-x86_64.tar.gz
+  rm nvim-linux-x86_64.tar.gz
+  
+  # Add to shell config if not already present
+  if ! grep -q '/opt/nvim-linux-x86_64/bin' "$USER_HOME/.bashrc"; then
+    echo 'export PATH="$PATH:/opt/nvim-linux-x86_64/bin"' >> "$USER_HOME/.bashrc"
+  fi
+  if ! grep -q '/opt/nvim-linux-x86_64/bin' "$USER_HOME/.zshrc" 2>/dev/null; then
+    echo 'export PATH="$PATH:/opt/nvim-linux-x86_64/bin"' >> "$USER_HOME/.zshrc"
+  fi
+else
+  info "Neovim already installed."
+fi
+
 info "Installing GitHub CLI..."
 if ! command -v gh &> /dev/null; then
   $SUDO mkdir -p -m 755 /etc/apt/keyrings
@@ -56,7 +72,7 @@ if ! command -v gh &> /dev/null; then
   wget -nv -O "$GH_KEYRING_TMP" https://cli.github.com/packages/githubcli-archive-keyring.gpg
   cat "$GH_KEYRING_TMP" | $SUDO tee /etc/apt/keyrings/githubcli-archive-keyring.gpg > /dev/null
   $SUDO chmod go+r /etc/apt/keyrings/githubcli-archive-keyring.gpg
-  echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | $SUDO tee /etc/apt/sources.list.d/github-cli.list > /dev/null
+  echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | $SUDO tee /etc/apt/sources.list.d/github-cli.sources > /dev/null
   $SUDO apt-get update -y
   $SUDO apt-get install gh -y
   rm -f "$GH_KEYRING_TMP"
