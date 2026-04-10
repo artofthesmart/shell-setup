@@ -72,7 +72,7 @@ if ! command -v gh &> /dev/null; then
   wget -nv -O "$GH_KEYRING_TMP" https://cli.github.com/packages/githubcli-archive-keyring.gpg
   cat "$GH_KEYRING_TMP" | $SUDO tee /etc/apt/keyrings/githubcli-archive-keyring.gpg > /dev/null
   $SUDO chmod go+r /etc/apt/keyrings/githubcli-archive-keyring.gpg
-  echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | $SUDO tee /etc/apt/sources.list.d/github-cli.list > /dev/null
+  echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | $SUDO tee /etc/apt/sources.list.d/github-cli.sources > /dev/null
   $SUDO apt-get update -y
   $SUDO apt-get install gh -y
   rm -f "$GH_KEYRING_TMP"
@@ -97,7 +97,8 @@ fi
 
 info "Setting up Oh My Zsh..."
 if [ ! -d "$USER_HOME/.oh-my-zsh" ]; then
-  CHSH=no RUNZSH=no sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)"
+  CHSH=no RUNZSH=no sh -c "
+    $(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)"
 else
   info "Oh My Zsh already installed."
 fi
@@ -144,4 +145,4 @@ else
   info "Zsh is already the default shell."
 fi
 
-info "Setup complete! Please restart your terminal or re-login for the default shell and font changes to take effect."
+info "Setup complete! Please restart your terminal or re-login for the default shell and font changes to take effect.
