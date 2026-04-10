@@ -145,4 +145,4 @@ else
   info "Zsh is already the default shell."
 fi
 
-info "Setup complete! Please restart your terminal or re-login for the default shell and font changes to take effect.
+info "Setup complete! Please restart your terminal or re-login for the default shell and font changes to take effect."
