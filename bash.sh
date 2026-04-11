@@ -46,11 +46,19 @@ $SUDO apt-get install -y \
   wget \
   curl \
   git \
-  nodejs \
-  npm \
   ripgrep \
   fd-find \
   fontconfig
+
+info "Installing nvm and Node.js..."
+# Download and install nvm:
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.4/install.sh | bash
+
+# in lieu of restarting the shell
+\. "$HOME/.nvm/nvm.sh"
+
+# Download and install Node.js:
+nvm install 25
 
 info "Installing Neovim..."
 if ! command -v nvim &> /dev/null; then
@@ -96,7 +104,7 @@ fi
 
 info "Installing Gemini CLI..."
 if ! command -v gemini &> /dev/null; then
-  $SUDO npm install -g @google/gemini-cli
+  npm install -g @google/gemini-cli
 else
   info "Gemini CLI already installed."
 fi
