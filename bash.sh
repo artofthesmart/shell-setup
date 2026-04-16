@@ -50,6 +50,34 @@ $SUDO apt-get install -y \
   fd-find \
   fontconfig
 
+info "Setting Zsh as default shell..."
+ZSH_PATH="$(which zsh)"
+if [ "$SHELL" != "$ZSH_PATH" ]; then
+  info "Changing shell to zsh for $USER_NAME..."
+  $SUDO chsh -s "$ZSH_PATH" "$USER_NAME"
+else
+  info "Zsh is already the default shell."
+fi
+
+info "Setting up Oh My Zsh..."
+if [ ! -d "$USER_HOME/.oh-my-zsh" ]; then
+  CHSH=no RUNZSH=no sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)"
+else
+  info "Oh My Zsh already installed."
+fi
+
+info "Setting up Powerlevel10k..."
+ZSH_CUSTOM="$USER_HOME/.oh-my-zsh/custom"
+if [ ! -d "$ZSH_CUSTOM/themes/powerlevel10k" ]; then
+  git clone --depth=1 https://github.com/romkatv/powerlevel10k.git "$ZSH_CUSTOM/themes/powerlevel10k"
+  
+  if [ -f "$USER_HOME/.zshrc" ]; then
+    sed -i 's/ZSH_THEME=".*"/ZSH_THEME="powerlevel10k\/powerlevel10k"/g' "$USER_HOME/.zshrc"
+  fi
+else
+  info "Powerlevel10k already installed."
+fi
+
 info "Installing nvm and Node.js..."
 export NVM_DIR="$USER_HOME/.nvm"
 # Clean up any potential broken state or root-owned nvm directory
@@ -75,12 +103,7 @@ if ! command -v nvim &> /dev/null; then
   $SUDO tar -C /opt -xzf nvim-linux-x86_64.tar.gz
   rm nvim-linux-x86_64.tar.gz
   
-  if ! grep -q '/opt/nvim-linux-x86_64/bin' "$USER_HOME/.bashrc"; then
-    echo 'export PATH="$PATH:/opt/nvim-linux-x86_64/bin"' >> "$USER_HOME/.bashrc"
-  fi
-  if ! grep -q '/opt/nvim-linux-x86_64/bin' "$USER_HOME/.zshrc" 2>/dev/null; then
-    echo 'export PATH="$PATH:/opt/nvim-linux-x86_64/bin"' >> "$USER_HOME/.zshrc"
-  fi
+  $SUDO ln -sf /opt/nvim-linux-x86_64/bin/nvim /usr/local/bin/nvim
 else
   info "Neovim already installed."
 fi
@@ -117,24 +140,6 @@ else
   info "Gemini CLI already installed."
 fi
 
-info "Setting up Oh My Zsh..."
-if [ ! -d "$USER_HOME/.oh-my-zsh" ]; then
-  CHSH=no RUNZSH=no sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)"
-else
-  info "Oh My Zsh already installed."
-fi
-
-info "Setting up Powerlevel10k..."
-ZSH_CUSTOM="$USER_HOME/.oh-my-zsh/custom"
-if [ ! -d "$ZSH_CUSTOM/themes/powerlevel10k" ]; then
-  git clone --depth=1 https://github.com/romkatv/powerlevel10k.git "$ZSH_CUSTOM/themes/powerlevel10k"
-  
-  if [ -f "$USER_HOME/.zshrc" ]; then
-    sed -i 's/ZSH_THEME=".*"/ZSH_THEME="powerlevel10k\/powerlevel10k"/g' "$USER_HOME/.zshrc"
-  fi
-else
-  info "Powerlevel10k already installed."
-fi
 
 info "Installing Roboto Nerd Font..."
 FONT_DIR="$USER_HOME/.local/share/fonts"
@@ -156,13 +161,5 @@ else
   info "Neovim config already exists. Skipping LazyVim setup."
 fi
 
-info "Setting Zsh as default shell..."
-ZSH_PATH="$(which zsh)"
-if [ "$SHELL" != "$ZSH_PATH" ]; then
-  info "Changing shell to zsh for $USER_NAME..."
-  $SUDO chsh -s "$ZSH_PATH" "$USER_NAME"
-else
-  info "Zsh is already the default shell."
-fi
 
 info "Setup complete! Please restart your terminal or re-login for the default shell and font changes to take effect."
