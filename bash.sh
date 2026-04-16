@@ -51,11 +51,19 @@ $SUDO apt-get install -y \
   fontconfig
 
 info "Installing nvm and Node.js..."
+export NVM_DIR="$USER_HOME/.nvm"
+# Clean up any potential broken state or root-owned nvm directory
+if [ -e "$NVM_DIR" ]; then
+    $SUDO rm -rf "$NVM_DIR"
+fi
+$SUDO mkdir -p "$NVM_DIR"
+$SUDO chown -R "$USER_NAME" "$NVM_DIR"
+
 # Download and install nvm:
 curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.4/install.sh | bash
 
 # in lieu of restarting the shell
-\. "$HOME/.nvm/nvm.sh"
+[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
 
 # Download and install Node.js:
 nvm install 25
