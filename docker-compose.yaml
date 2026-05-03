@@ -1,9 +1,9 @@
 # This configuration contains my attempt at creating an all-in-one locally hosted AI
-# setup. 
-# - Includes InvokeAI and OpenWebUI (with Ollama). 
+# setup suitable for Linux. 
+# - Includes InvokeAI, OpenWebUI (with Ollama), n8n, Stirling PDF, and Vert. 
 # - Uses Tailscale for secure remote access.
 # 
-# ArtOfTheSmart.com | 2025-08-30
+# ArtOfTheSmart.com | 2026-05-03
 
 name: aots-ai-config
 
@@ -20,7 +20,7 @@ services:
       - NET_RAW
     volumes:
       - ts-open-webui:/var/lib/tailscale
-      - /home/user/config:/config
+      - ./config:/config
       - /dev/net/tun:/dev/net/tun
     environment:
       - TS_STATE_DIR=/var/lib/tailscale
@@ -39,8 +39,8 @@ services:
       WEBUI_AUTH: "false"
       port: 1000
     volumes:
-      - /home/user/ollama:/root/.ollama
-      - /home/user/open-webui:/app/backend/data
+      - ./ollama:/root/.ollama
+      - ./open-webui:/app/backend/data
     deploy:
       resources:
         reservations:
@@ -61,7 +61,7 @@ services:
       - NET_RAW
     volumes:
       - ts-invokeai:/var/lib/tailscale
-      - /home/user/config:/config
+      - ./config:/config
       - /dev/net/tun:/dev/net/tun
     environment:
       - TS_STATE_DIR=/var/lib/tailscale
@@ -83,10 +83,8 @@ services:
             - driver: nvidia
               count: all
               capabilities: [gpu]
-    # ports:
-    #  - "9090:9090"
     volumes:
-      - /home/user/invokeai:/invokeai
+      - ./invokeai:/invokeai
 
 # 3rd service with Tailscale and Postgres for n8n
   ts-n8n:
@@ -99,7 +97,7 @@ services:
       - NET_RAW
     volumes:
       - ts-n8n:/var/lib/tailscale
-      - /home/user/config:/config
+      - ./config:/config
       - /dev/net/tun:/dev/net/tun
     environment:
       - TS_STATE_DIR=/var/lib/tailscale
@@ -158,7 +156,7 @@ services:
       - NET_RAW
     volumes:
       - ts-ollama:/var/lib/tailscale
-      - /home/user/config:/config
+      - ./config:/config
       - /dev/net/tun:/dev/net/tun
     environment:
       - TS_STATE_DIR=/var/lib/tailscale
@@ -177,7 +175,7 @@ services:
       WEBUI_AUTH: "false"
       port: 11434
     volumes:
-      - /home/user/ollama:/root/.ollama
+      - ./ollama:/root/.ollama
     deploy:
       resources:
         reservations:
@@ -185,6 +183,62 @@ services:
             - driver: nvidia
               count: all
               capabilities: [gpu]
+
+# 5th service with Tailscale for Stirling PDF
+  ts-stirling-pdf:
+    container_name: ts-stirling-pdf
+    hostname: stirling-pdf
+    image: tailscale/tailscale:latest
+    restart: unless-stopped
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+    volumes:
+      - ts-stirling-pdf:/var/lib/tailscale
+      - ./config:/config
+      - /dev/net/tun:/dev/net/tun
+    environment:
+      - TS_STATE_DIR=/var/lib/tailscale
+      - TS_AUTH_KEY=${TS_AUTH_KEY}
+      - TS_USERSPACE=false
+      - TS_SERVE_CONFIG=/config/stirling-pdf.json
+      - "TS_EXTRA_ARGS=--advertise-tags=tag:container --netfilter-mode=off"
+  stirling-pdf:
+    container_name: stirling-pdf
+    image: stirlingtools/stirling-pdf:latest
+    restart: unless-stopped
+    network_mode: service:ts-stirling-pdf
+    depends_on:
+      - ts-stirling-pdf
+    environment:
+      - SERVER_PORT=8080
+
+# 6th service with Tailscale for Vert
+  ts-vert:
+    container_name: ts-vert
+    hostname: vert
+    image: tailscale/tailscale:latest
+    restart: unless-stopped
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+    volumes:
+      - ts-vert:/var/lib/tailscale
+      - ./config:/config
+      - /dev/net/tun:/dev/net/tun
+    environment:
+      - TS_STATE_DIR=/var/lib/tailscale
+      - TS_AUTH_KEY=${TS_AUTH_KEY}
+      - TS_USERSPACE=false
+      - TS_SERVE_CONFIG=/config/vert.json
+      - "TS_EXTRA_ARGS=--advertise-tags=tag:container --netfilter-mode=off"
+  vert:
+    container_name: vert
+    image: ghcr.io/vert-sh/vert:latest
+    restart: unless-stopped
+    network_mode: service:ts-vert
+    depends_on:
+      - ts-vert
 
 volumes:
   ts-open-webui: 
@@ -194,6 +248,10 @@ volumes:
   ts-n8n:
     driver: local
   ts-ollama:
+    driver: local
+  ts-stirling-pdf:
+    driver: local
+  ts-vert:
     driver: local
   db_storage:
     driver: local
