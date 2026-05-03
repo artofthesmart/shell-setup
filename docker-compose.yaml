@@ -20,7 +20,7 @@ services:
       - NET_RAW
     volumes:
       - ts-open-webui:/var/lib/tailscale
-      - ./config:/config
+      - /home/user/config:/config
       - /dev/net/tun:/dev/net/tun
     environment:
       - TS_STATE_DIR=/var/lib/tailscale
@@ -51,7 +51,7 @@ services:
 
 
 # 2nd service with Tailscale and GPU access for InvokeAI
-  tailscale-invokeai:
+  ts-invokeai:
     container_name: ts-invokeai
     hostname: invokeai
     image: tailscale/tailscale:latest
@@ -61,7 +61,7 @@ services:
       - NET_RAW
     volumes:
       - ts-invokeai:/var/lib/tailscale
-      - ./config:/config
+      - /home/user/config:/config
       - /dev/net/tun:/dev/net/tun
     environment:
       - TS_STATE_DIR=/var/lib/tailscale
@@ -89,7 +89,7 @@ services:
       - /home/user/invokeai:/invokeai
 
 # 3rd service with Tailscale and Postgres for n8n
-  tailscale-n8n:
+  ts-n8n:
     container_name: ts-n8n
     hostname: n8n
     image: tailscale/tailscale:latest
@@ -99,7 +99,7 @@ services:
       - NET_RAW
     volumes:
       - ts-n8n:/var/lib/tailscale
-      - ./config:/config
+      - /home/user/config:/config
       - /dev/net/tun:/dev/net/tun
     environment:
       - TS_STATE_DIR=/var/lib/tailscale
@@ -158,7 +158,7 @@ services:
       - NET_RAW
     volumes:
       - ts-ollama:/var/lib/tailscale
-      - ./config:/config
+      - /home/user/config:/config
       - /dev/net/tun:/dev/net/tun
     environment:
       - TS_STATE_DIR=/var/lib/tailscale
