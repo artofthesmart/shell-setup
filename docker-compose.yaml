@@ -20,11 +20,11 @@ services:
       - NET_RAW
     volumes:
       - ts-open-webui:/var/lib/tailscale
-      - /home/user/config:/config
+      - ./config:/config
       - /dev/net/tun:/dev/net/tun
     environment:
       - TS_STATE_DIR=/var/lib/tailscale
-      - TS_AUTH_KEY=
+      - TS_AUTH_KEY=${TS_AUTH_KEY}
       - TS_USERSPACE=false
       - TS_SERVE_CONFIG=/config/open-webui.json
       - "TS_EXTRA_ARGS=--advertise-tags=tag:container --netfilter-mode=off"
@@ -48,8 +48,6 @@ services:
             - driver: nvidia
               count: all
               capabilities: [gpu]
-    # ports: 
-    #   - "3000:1000"
 
 
 # 2nd service with Tailscale and GPU access for InvokeAI
@@ -63,11 +61,11 @@ services:
       - NET_RAW
     volumes:
       - ts-invokeai:/var/lib/tailscale
-      - /home/user/config:/config
+      - ./config:/config
       - /dev/net/tun:/dev/net/tun
     environment:
       - TS_STATE_DIR=/var/lib/tailscale
-      - TS_AUTH_KEY=
+      - TS_AUTH_KEY=${TS_AUTH_KEY}
       - TS_USERSPACE=false
       - TS_SERVE_CONFIG=/config/invokeai.json
       - "TS_EXTRA_ARGS=--advertise-tags=tag:container --netfilter-mode=off"
@@ -101,11 +99,11 @@ services:
       - NET_RAW
     volumes:
       - ts-n8n:/var/lib/tailscale
-      - /home/user/config:/config
+      - ./config:/config
       - /dev/net/tun:/dev/net/tun
     environment:
       - TS_STATE_DIR=/var/lib/tailscale
-      - TS_AUTH_KEY=
+      - TS_AUTH_KEY=${TS_AUTH_KEY}
       - TS_USERSPACE=false
       - TS_SERVE_CONFIG=/config/n8n.json
       - "TS_EXTRA_ARGS=--advertise-tags=tag:container --netfilter-mode=off"
@@ -114,11 +112,11 @@ services:
     restart: always
     network_mode: service:tailscale-n8n
     environment:
-      - POSTGRES_USER
-      - POSTGRES_PASSWORD
-      - POSTGRES_DB
-      - POSTGRES_NON_ROOT_USER
-      - POSTGRES_NON_ROOT_PASSWORD
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_NON_ROOT_USER=${POSTGRES_NON_ROOT_USER}
+      - POSTGRES_NON_ROOT_PASSWORD=${POSTGRES_NON_ROOT_PASSWORD}
       - PGPORT=5432
     volumes:
       - db_storage:/var/lib/postgresql/data
@@ -160,11 +158,11 @@ services:
       - NET_RAW
     volumes:
       - ts-ollama:/var/lib/tailscale
-      - /home/user/config:/config
+      - ./config:/config
       - /dev/net/tun:/dev/net/tun
     environment:
       - TS_STATE_DIR=/var/lib/tailscale
-      - TS_AUTH_KEY=
+      - TS_AUTH_KEY=${TS_AUTH_KEY}
       - TS_USERSPACE=false
       - TS_SERVE_CONFIG=/config/ollama.json
       - "TS_EXTRA_ARGS=--advertise-tags=tag:container --netfilter-mode=off"
@@ -197,8 +195,6 @@ volumes:
     driver: local
   ts-ollama:
     driver: local
-  #ts-plex:
-  #  driver: local
   db_storage:
     driver: local
   n8n_storage:
