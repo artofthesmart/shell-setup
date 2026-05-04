@@ -240,6 +240,114 @@ services:
     depends_on:
       - ts-vert
 
+# 7th service with Tailscale for Grav Control Plane
+  ts-grav-control:
+    container_name: ts-grav-control
+    hostname: grav-control
+    image: tailscale/tailscale:latest
+    restart: unless-stopped
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+    volumes:
+      - ts-grav-control:/var/lib/tailscale
+      - ./config:/config
+      - /dev/net/tun:/dev/net/tun
+    environment:
+      - TS_STATE_DIR=/var/lib/tailscale
+      - TS_AUTH_KEY=${TS_AUTH_KEY}
+      - TS_USERSPACE=false
+      - TS_SERVE_CONFIG=/config/grav.json
+      - "TS_EXTRA_ARGS=--advertise-tags=tag:container --netfilter-mode=off"
+  grav-control:
+    container_name: grav-control
+    build:
+      context: ./grav-control
+    restart: unless-stopped
+    network_mode: service:ts-grav-control
+    depends_on:
+      - ts-grav-control
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+
+# 8th service: vLLM Instance 1
+  ts-vllm-1:
+    container_name: ts-vllm-1
+    hostname: vllm-1
+    image: tailscale/tailscale:latest
+    restart: unless-stopped
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+    volumes:
+      - ts-vllm-1:/var/lib/tailscale
+      - ./config:/config
+      - /dev/net/tun:/dev/net/tun
+    environment:
+      - TS_STATE_DIR=/var/lib/tailscale
+      - TS_AUTH_KEY=${TS_AUTH_KEY}
+      - TS_USERSPACE=false
+      - TS_SERVE_CONFIG=/config/vllm-1.json
+      - "TS_EXTRA_ARGS=--advertise-tags=tag:container --netfilter-mode=off"
+  vllm-1:
+    container_name: vllm-1
+    image: vllm/vllm-openai:latest
+    restart: unless-stopped
+    network_mode: service:ts-vllm-1
+    depends_on:
+      - ts-vllm-1
+    environment:
+      - HUGGING_FACE_HUB_TOKEN=${HF_TOKEN}
+    command: --model ${VLLM_MODEL_1}
+    volumes:
+      - ./vllm/cache:/root/.cache/huggingface
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+
+# 9th service: vLLM Instance 2
+  ts-vllm-2:
+    container_name: ts-vllm-2
+    hostname: vllm-2
+    image: tailscale/tailscale:latest
+    restart: unless-stopped
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+    volumes:
+      - ts-vllm-2:/var/lib/tailscale
+      - ./config:/config
+      - /dev/net/tun:/dev/net/tun
+    environment:
+      - TS_STATE_DIR=/var/lib/tailscale
+      - TS_AUTH_KEY=${TS_AUTH_KEY}
+      - TS_USERSPACE=false
+      - TS_SERVE_CONFIG=/config/vllm-2.json
+      - "TS_EXTRA_ARGS=--advertise-tags=tag:container --netfilter-mode=off"
+  vllm-2:
+    container_name: vllm-2
+    image: vllm/vllm-openai:latest
+    restart: unless-stopped
+    network_mode: service:ts-vllm-2
+    depends_on:
+      - ts-vllm-2
+    environment:
+      - HUGGING_FACE_HUB_TOKEN=${HF_TOKEN}
+    command: --model ${VLLM_MODEL_2}
+    volumes:
+      - ./vllm/cache:/root/.cache/huggingface
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+
 volumes:
   ts-open-webui: 
     driver: local
@@ -250,6 +358,12 @@ volumes:
   ts-ollama:
     driver: local
   ts-stirling-pdf:
+    driver: local
+  ts-grav-control:
+    driver: local
+  ts-vllm-1:
+    driver: local
+  ts-vllm-2:
     driver: local
   ts-vert:
     driver: local
