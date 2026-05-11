@@ -140,8 +140,10 @@ if [[ $REPLY =~ ^[Yy]$ ]]; then
 
   # 1. Enable IP Forwarding
   info "[1/5] Enabling IP forwarding..."
-  echo 'net.ipv4.ip_forward = 1' | $SUDO tee -a /etc/sysctl.d/99-tailscale.conf
-  echo 'net.ipv6.conf.all.forwarding = 1' | $SUDO tee -a /etc/sysctl.d/99-tailscale.conf
+  $SUDO tee /etc/sysctl.d/99-tailscale.conf > /dev/null <<EOF
+net.ipv4.ip_forward = 1
+net.ipv6.conf.all.forwarding = 1
+EOF
   $SUDO sysctl -p /etc/sysctl.d/99-tailscale.conf
 
   # 2. Detect Network Interface and Subnet
@@ -164,7 +166,13 @@ if [[ $REPLY =~ ^[Yy]$ ]]; then
   # 4. Make Optimizations Persistent
   info "[4/5] Creating persistence script for optimizations..."
   $SUDO mkdir -p /etc/networkd-dispatcher/routable.d/
-  printf "#!/bin/sh\n\nethtool -K %s rx-udp-gro-forwarding on rx-gro-list off\n" "$NET_INTERFACE" | $SUDO tee /etc/networkd-dispatcher/routable.d/50-tailscale > /dev/null
+  $SUDO tee /etc/networkd-dispatcher/routable.d/50-tailscale > /dev/null <<'EOF'
+#!/bin/sh
+NET_INTERFACE=$(ip -o route get 8.8.8.8 | cut -f 5 -d " ")
+if [ -n "$NET_INTERFACE" ]; then
+    ethtool -K "$NET_INTERFACE" rx-udp-gro-forwarding on rx-gro-list off || true
+fi
+EOF
   $SUDO chmod 755 /etc/networkd-dispatcher/routable.d/50-tailscale
 
   # 5. Start Tailscale
