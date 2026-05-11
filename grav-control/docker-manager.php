@@ -1,7 +1,7 @@
 <?php
 header("Cache-Control: no-cache, must-revalidate");
 
-$managed_containers = ['open-webui', 'ollama', 'invokeai', 'llama-cpp-1', 'llama-cpp-2'];
+$managed_containers = ['open-webui', 'ollama', 'invokeai', 'llama-cpp-1', 'llama-cpp-2', 'llama-cpp-3'];
 
 function get_container_states() {
     global $managed_containers;

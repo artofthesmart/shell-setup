@@ -243,7 +243,7 @@ services:
 # 7th service with Tailscale for Grav Control Plane
   ts-grav-control:
     container_name: ts-grav-control
-    hostname: grav-control
+    hostname: grav
     image: tailscale/tailscale:latest
     restart: unless-stopped
     cap_add:
@@ -273,8 +273,9 @@ services:
 # 8th service: llama.cpp Instance 1
   ts-llama-cpp-1:
     container_name: ts-llama-cpp-1
-    hostname: llama-cpp-1
+    hostname: llama-1
     image: tailscale/tailscale:latest
+    profiles: ["manual"]
     restart: unless-stopped
     cap_add:
       - NET_ADMIN
@@ -292,6 +293,7 @@ services:
   llama-cpp-1:
     container_name: llama-cpp-1
     image: ghcr.io/ggml-org/llama.cpp:server
+    profiles: ["manual"]
     restart: unless-stopped
     network_mode: service:ts-llama-cpp-1
     depends_on:
@@ -312,8 +314,9 @@ services:
 # 9th service: llama.cpp Instance 2
   ts-llama-cpp-2:
     container_name: ts-llama-cpp-2
-    hostname: llama-cpp-2
+    hostname: llama-2
     image: tailscale/tailscale:latest
+    profiles: ["manual"]
     restart: unless-stopped
     cap_add:
       - NET_ADMIN
@@ -331,6 +334,7 @@ services:
   llama-cpp-2:
     container_name: llama-cpp-2
     image: ghcr.io/ggml-org/llama.cpp:server
+    profiles: ["manual"]
     restart: unless-stopped
     network_mode: service:ts-llama-cpp-2
     depends_on:
@@ -348,6 +352,42 @@ services:
               count: all
               capabilities: [gpu]
 
+# 10th service: llama.cpp Instance 3 (CPU/iGPU only)
+  ts-llama-cpp-3:
+    container_name: ts-llama-cpp-3
+    hostname: llama-3
+    image: tailscale/tailscale:latest
+    profiles: ["manual"]
+    restart: unless-stopped
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+    volumes:
+      - ts-llama-cpp-3:/var/lib/tailscale
+      - ./config:/config
+      - /dev/net/tun:/dev/net/tun
+    environment:
+      - TS_STATE_DIR=/var/lib/tailscale
+      - TS_AUTH_KEY=${TS_AUTH_KEY}
+      - TS_USERSPACE=false
+      - TS_SERVE_CONFIG=/config/llama-cpp-3.json
+      - "TS_EXTRA_ARGS=--advertise-tags=tag:container --netfilter-mode=off"
+  llama-cpp-3:
+    container_name: llama-cpp-3
+    image: ghcr.io/ggml-org/llama.cpp:server
+    profiles: ["manual"]
+    restart: unless-stopped
+    network_mode: service:ts-llama-cpp-3
+    depends_on:
+      - ts-llama-cpp-3
+    devices:
+      - /dev/dri:/dev/dri
+    environment:
+      - LLAMA_ARG_HOST=0.0.0.0
+    command: --hf-repo ${LLAMA_HF_REPO_3} --hf-file ${LLAMA_HF_FILE_3} -c 4096 --port 8080
+    volumes:
+      - /var/lib/ai-models/llama:/models
+
 volumes:
   ts-open-webui: 
     driver: local
@@ -364,6 +404,8 @@ volumes:
   ts-llama-cpp-1:
     driver: local
   ts-llama-cpp-2:
+    driver: local
+  ts-llama-cpp-3:
     driver: local
   ts-vert:
     driver: local
