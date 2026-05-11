@@ -133,6 +133,48 @@ else
   info "Tailscale already installed."
 fi
 
+read -p "Do you want to configure this installation as a Tailscale exit node? (y/n) " -n 1 -r
+echo
+if [[ $REPLY =~ ^[Yy]$ ]]; then
+  info "--- Starting Tailscale Exit Node & Optimization Setup ---"
+
+  # 1. Enable IP Forwarding
+  info "[1/5] Enabling IP forwarding..."
+  echo 'net.ipv4.ip_forward = 1' | $SUDO tee -a /etc/sysctl.d/99-tailscale.conf
+  echo 'net.ipv6.conf.all.forwarding = 1' | $SUDO tee -a /etc/sysctl.d/99-tailscale.conf
+  $SUDO sysctl -p /etc/sysctl.d/99-tailscale.conf
+
+  # 2. Detect Network Interface and Subnet
+  info "[2/5] Detecting local network settings..."
+  # Finds the interface used for internet access (e.g., enp3s0 or eno1)
+  NET_INTERFACE=$(ip -o route get 8.8.8.8 | cut -f 5 -d " ")
+  # Finds the local subnet associated with that interface (e.g., 192.168.1.0/24)
+  SUBNET_ROUTE=$(ip route show dev "$NET_INTERFACE" | grep -v default | awk '{print $1}' | head -n 1)
+
+  echo "    Found Interface: $NET_INTERFACE"
+  echo "    Found Subnet:    $SUBNET_ROUTE"
+
+  # 3. Apply UDP GRO Forwarding Optimizations (Immediate)
+  info "[3/5] Applying UDP performance optimizations..."
+  if ! command -v ethtool >/dev/null 2>&1; then
+      $SUDO apt-get update && $SUDO apt-get install -y ethtool
+  fi
+  $SUDO ethtool -K "$NET_INTERFACE" rx-udp-gro-forwarding on rx-gro-list off
+
+  # 4. Make Optimizations Persistent
+  info "[4/5] Creating persistence script for optimizations..."
+  $SUDO mkdir -p /etc/networkd-dispatcher/routable.d/
+  printf "#!/bin/sh\n\nethtool -K %s rx-udp-gro-forwarding on rx-gro-list off\n" "$NET_INTERFACE" | $SUDO tee /etc/networkd-dispatcher/routable.d/50-tailscale > /dev/null
+  $SUDO chmod 755 /etc/networkd-dispatcher/routable.d/50-tailscale
+
+  # 5. Start Tailscale
+  info "[5/5] Activating Tailscale..."
+  $SUDO tailscale up --advertise-exit-node --advertise-routes="$SUBNET_ROUTE" --accept-routes
+
+  info "--- Setup Complete! ---"
+  info "Final Step: Go to the Tailscale Admin Console to approve the exit node and routes."
+fi
+
 info "Installing Gemini CLI..."
 if ! command -v gemini &> /dev/null; then
   npm install -g @google/gemini-cli
