@@ -30,16 +30,16 @@ services:
       - "TS_EXTRA_ARGS=--advertise-tags=tag:container --netfilter-mode=off"
   open-webui:
     container_name: open-webui
-    image: ghcr.io/open-webui/open-webui:ollama
+    image: ghcr.io/open-webui/open-webui:main
     restart: unless-stopped
     network_mode: service:ts-open-webui
     depends_on:
       - ts-open-webui
     environment:
       WEBUI_AUTH: "false"
+      OLLAMA_BASE_URL: "http://ollama.bombay-climb.ts.net"
       port: 1000
     volumes:
-      - ./ollama:/root/.ollama
       - ./open-webui:/app/backend/data
     deploy:
       resources:
@@ -175,7 +175,7 @@ services:
       WEBUI_AUTH: "false"
       port: 11434
     volumes:
-      - ./ollama:/root/.ollama
+      - /var/lib/ai-models/ollama:/root/.ollama
     deploy:
       resources:
         reservations:
@@ -270,37 +270,37 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
 
-# 8th service: vLLM Instance 1
-  ts-vllm-1:
-    container_name: ts-vllm-1
-    hostname: vllm-1
+# 8th service: llama.cpp Instance 1
+  ts-llama-cpp-1:
+    container_name: ts-llama-cpp-1
+    hostname: llama-cpp-1
     image: tailscale/tailscale:latest
     restart: unless-stopped
     cap_add:
       - NET_ADMIN
       - NET_RAW
     volumes:
-      - ts-vllm-1:/var/lib/tailscale
+      - ts-llama-cpp-1:/var/lib/tailscale
       - ./config:/config
       - /dev/net/tun:/dev/net/tun
     environment:
       - TS_STATE_DIR=/var/lib/tailscale
       - TS_AUTH_KEY=${TS_AUTH_KEY}
       - TS_USERSPACE=false
-      - TS_SERVE_CONFIG=/config/vllm-1.json
+      - TS_SERVE_CONFIG=/config/llama-cpp-1.json
       - "TS_EXTRA_ARGS=--advertise-tags=tag:container --netfilter-mode=off"
-  vllm-1:
-    container_name: vllm-1
-    image: vllm/vllm-openai:latest
+  llama-cpp-1:
+    container_name: llama-cpp-1
+    image: ghcr.io/ggml-org/llama.cpp:server
     restart: unless-stopped
-    network_mode: service:ts-vllm-1
+    network_mode: service:ts-llama-cpp-1
     depends_on:
-      - ts-vllm-1
+      - ts-llama-cpp-1
     environment:
-      - HUGGING_FACE_HUB_TOKEN=${HF_TOKEN}
-    command: --model ${VLLM_MODEL_1}
+      - LLAMA_ARG_HOST=0.0.0.0
+    command: --hf-repo ${LLAMA_HF_REPO_1} --hf-file ${LLAMA_HF_FILE_1} -c 4096 --port 8080
     volumes:
-      - ./vllm/cache:/root/.cache/huggingface
+      - /var/lib/ai-models/llama:/models
     deploy:
       resources:
         reservations:
@@ -309,37 +309,37 @@ services:
               count: all
               capabilities: [gpu]
 
-# 9th service: vLLM Instance 2
-  ts-vllm-2:
-    container_name: ts-vllm-2
-    hostname: vllm-2
+# 9th service: llama.cpp Instance 2
+  ts-llama-cpp-2:
+    container_name: ts-llama-cpp-2
+    hostname: llama-cpp-2
     image: tailscale/tailscale:latest
     restart: unless-stopped
     cap_add:
       - NET_ADMIN
       - NET_RAW
     volumes:
-      - ts-vllm-2:/var/lib/tailscale
+      - ts-llama-cpp-2:/var/lib/tailscale
       - ./config:/config
       - /dev/net/tun:/dev/net/tun
     environment:
       - TS_STATE_DIR=/var/lib/tailscale
       - TS_AUTH_KEY=${TS_AUTH_KEY}
       - TS_USERSPACE=false
-      - TS_SERVE_CONFIG=/config/vllm-2.json
+      - TS_SERVE_CONFIG=/config/llama-cpp-2.json
       - "TS_EXTRA_ARGS=--advertise-tags=tag:container --netfilter-mode=off"
-  vllm-2:
-    container_name: vllm-2
-    image: vllm/vllm-openai:latest
+  llama-cpp-2:
+    container_name: llama-cpp-2
+    image: ghcr.io/ggml-org/llama.cpp:server
     restart: unless-stopped
-    network_mode: service:ts-vllm-2
+    network_mode: service:ts-llama-cpp-2
     depends_on:
-      - ts-vllm-2
+      - ts-llama-cpp-2
     environment:
-      - HUGGING_FACE_HUB_TOKEN=${HF_TOKEN}
-    command: --model ${VLLM_MODEL_2}
+      - LLAMA_ARG_HOST=0.0.0.0
+    command: --hf-repo ${LLAMA_HF_REPO_2} --hf-file ${LLAMA_HF_FILE_2} -c 4096 --port 8080
     volumes:
-      - ./vllm/cache:/root/.cache/huggingface
+      - /var/lib/ai-models/llama:/models
     deploy:
       resources:
         reservations:
@@ -361,9 +361,9 @@ volumes:
     driver: local
   ts-grav-control:
     driver: local
-  ts-vllm-1:
+  ts-llama-cpp-1:
     driver: local
-  ts-vllm-2:
+  ts-llama-cpp-2:
     driver: local
   ts-vert:
     driver: local
