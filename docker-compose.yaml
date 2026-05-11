@@ -73,9 +73,9 @@ services:
     container_name: invokeai
     image: ghcr.io/invoke-ai/invokeai:latest
     restart: unless-stopped
-    network_mode: service:tailscale-invokeai
+    network_mode: service:ts-invokeai
     depends_on:
-      - tailscale-invokeai
+      - ts-invokeai
     deploy:
       resources:
         reservations:
@@ -108,7 +108,7 @@ services:
   postgres:
     image: postgres:16
     restart: always
-    network_mode: service:tailscale-n8n
+    network_mode: service:ts-n8n
     environment:
       - POSTGRES_USER=${POSTGRES_USER}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
@@ -128,9 +128,9 @@ services:
     container_name: n8n
     image: docker.n8n.io/n8nio/n8n
     restart: unless-stopped
-    network_mode: service:tailscale-n8n
+    network_mode: service:ts-n8n
     depends_on:
-      tailscale-n8n:
+      ts-n8n:
         condition: service_started
       postgres:
         condition: service_healthy
