@@ -13,3 +13,15 @@
 .Trashes
 ehthumbs.db
 Thumbs.db
+
+# Application Data & Local DBs
+open-webui/
+local-files/
+
+# Python Cruft
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+env/
