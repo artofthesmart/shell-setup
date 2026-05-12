@@ -240,15 +240,12 @@ services:
     network_mode: service:ts-grav-control
     depends_on:
       - ts-grav-control
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
 
 # 8th service: llama.cpp Instance 1
   ts-llama-cpp-1:
-    container_name: ts-llama-cpp-1
-    hostname: llama-1
+    container_name: ts-${LLAMA_NAME_1}
+    hostname: ${LLAMA_NAME_1}
     image: tailscale/tailscale:latest
-    profiles: ["manual"]
     restart: unless-stopped
     cap_add:
       - NET_ADMIN
@@ -264,16 +261,24 @@ services:
       - TS_SERVE_CONFIG=/config/llama-cpp-1.json
       - "TS_EXTRA_ARGS=--advertise-tags=tag:container --netfilter-mode=off"
   llama-cpp-1:
-    container_name: llama-cpp-1
-    image: ghcr.io/ggml-org/llama.cpp:server
+    container_name: ${LLAMA_NAME_1}
+    image: ghcr.io/ggml-org/llama.cpp:server-cuda
     profiles: ["manual"]
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 300s
     network_mode: service:ts-llama-cpp-1
     depends_on:
       - ts-llama-cpp-1
+    cap_add:
+      - IPC_LOCK
     environment:
       - LLAMA_ARG_HOST=0.0.0.0
-    command: --hf-repo ${LLAMA_HF_REPO_1} --hf-file ${LLAMA_HF_FILE_1} -c 4096 --port 8080
+    command: --hf-repo ${LLAMA_HF_REPO_1} --hf-file ${LLAMA_HF_FILE_1} -c 4096 --port 8080 --mlock -ngl 99
     volumes:
       - /var/lib/ai-models/llama:/models
     deploy:
@@ -286,10 +291,9 @@ services:
 
 # 9th service: llama.cpp Instance 2
   ts-llama-cpp-2:
-    container_name: ts-llama-cpp-2
-    hostname: llama-2
+    container_name: ts-${LLAMA_NAME_2}
+    hostname: ${LLAMA_NAME_2}
     image: tailscale/tailscale:latest
-    profiles: ["manual"]
     restart: unless-stopped
     cap_add:
       - NET_ADMIN
@@ -305,16 +309,24 @@ services:
       - TS_SERVE_CONFIG=/config/llama-cpp-2.json
       - "TS_EXTRA_ARGS=--advertise-tags=tag:container --netfilter-mode=off"
   llama-cpp-2:
-    container_name: llama-cpp-2
-    image: ghcr.io/ggml-org/llama.cpp:server
+    container_name: ${LLAMA_NAME_2}
+    image: ghcr.io/ggml-org/llama.cpp:server-cuda
     profiles: ["manual"]
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 300s
     network_mode: service:ts-llama-cpp-2
     depends_on:
       - ts-llama-cpp-2
+    cap_add:
+      - IPC_LOCK
     environment:
       - LLAMA_ARG_HOST=0.0.0.0
-    command: --hf-repo ${LLAMA_HF_REPO_2} --hf-file ${LLAMA_HF_FILE_2} -c 4096 --port 8080
+    command: --hf-repo ${LLAMA_HF_REPO_2} --hf-file ${LLAMA_HF_FILE_2} -c 4096 --port 8080 --mlock -ngl 99
     volumes:
       - /var/lib/ai-models/llama:/models
     deploy:
@@ -327,10 +339,9 @@ services:
 
 # 10th service: llama.cpp Instance 3 (CPU/iGPU only)
   ts-llama-cpp-3:
-    container_name: ts-llama-cpp-3
-    hostname: llama-3
+    container_name: ts-${LLAMA_NAME_3}
+    hostname: ${LLAMA_NAME_3}
     image: tailscale/tailscale:latest
-    profiles: ["manual"]
     restart: unless-stopped
     cap_add:
       - NET_ADMIN
@@ -346,18 +357,28 @@ services:
       - TS_SERVE_CONFIG=/config/llama-cpp-3.json
       - "TS_EXTRA_ARGS=--advertise-tags=tag:container --netfilter-mode=off"
   llama-cpp-3:
-    container_name: llama-cpp-3
+    container_name: ${LLAMA_NAME_3}
     image: ghcr.io/ggml-org/llama.cpp:server
     profiles: ["manual"]
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 300s
     network_mode: service:ts-llama-cpp-3
     depends_on:
       - ts-llama-cpp-3
     devices:
       - /dev/dri:/dev/dri
+    cap_add:
+      - IPC_LOCK
+    mem_limit: 86g
+    memswap_limit: 86g
     environment:
       - LLAMA_ARG_HOST=0.0.0.0
-    command: --hf-repo ${LLAMA_HF_REPO_3} --hf-file ${LLAMA_HF_FILE_3} -c 4096 --port 8080
+    command: --hf-repo ${LLAMA_HF_REPO_3} --hf-file ${LLAMA_HF_FILE_3} -c 4096 --port 8080 --mlock
     volumes:
       - /var/lib/ai-models/llama:/models
 

@@ -19,17 +19,7 @@ RUN apt-get update && apt-get install -y \
     gnupg \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Docker CLI
-RUN install -m 0755 -d /etc/apt/keyrings && \
-    curl -fsSL https://download.docker.com/linux/debian/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg && \
-    chmod a+r /etc/apt/keyrings/docker.gpg && \
-    echo \
-      "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/debian \
-      $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | \
-      tee /etc/apt/sources.list.d/docker.list > /dev/null && \
-    apt-get update && \
-    apt-get install -y docker-ce-cli && \
-    rm -rf /var/lib/apt/lists/*
+
 
 RUN a2enmod rewrite
 
@@ -41,11 +31,13 @@ RUN rm -rf /var/www/html/* && \
     mv /tmp/grav-admin/.htaccess /var/www/html/ && \
     rm -rf /tmp/grav-admin grav.zip
 
+RUN sed -i 's/80/8080/g' /etc/apache2/ports.conf && \
+    sed -i 's/:80/:8080/g' /etc/apache2/sites-available/000-default.conf
+
 COPY entrypoint.sh /usr/local/bin/entrypoint.sh
 RUN chmod +x /usr/local/bin/entrypoint.sh
 
-COPY docker-manager.php /var/www/html/docker-manager.php
 RUN chown -R www-data:www-data /var/www/html
 
-EXPOSE 80
+EXPOSE 8080
 ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]

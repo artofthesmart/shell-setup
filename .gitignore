@@ -16,6 +16,7 @@ Thumbs.db
 
 # Application Data & Local DBs
 open-webui/
+invokeai/
 local-files/
 
 # Python Cruft
