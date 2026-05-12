@@ -278,7 +278,10 @@ services:
       - IPC_LOCK
     environment:
       - LLAMA_ARG_HOST=0.0.0.0
-    command: --hf-repo ${LLAMA_HF_REPO_1} --hf-file ${LLAMA_HF_FILE_1} -c 4096 --port 8080 --mlock -ngl 99
+      - HF_TOKEN=${HF_TOKEN}
+      - HF_HOME=/models/cache
+      - LLAMA_CACHE=/models/cache
+    command: -m /models/${LLAMA_HF_FILE_1} --hf-repo ${LLAMA_HF_REPO_1} --hf-file ${LLAMA_HF_FILE_1} -c 4096 --port 8080 --mlock -ngl 99
     volumes:
       - /var/lib/ai-models/llama:/models
     deploy:
@@ -326,7 +329,10 @@ services:
       - IPC_LOCK
     environment:
       - LLAMA_ARG_HOST=0.0.0.0
-    command: --hf-repo ${LLAMA_HF_REPO_2} --hf-file ${LLAMA_HF_FILE_2} -c 4096 --port 8080 --mlock -ngl 99
+      - HF_TOKEN=${HF_TOKEN}
+      - HF_HOME=/models/cache
+      - LLAMA_CACHE=/models/cache
+    command: -m /models/${LLAMA_HF_FILE_2} --hf-repo ${LLAMA_HF_REPO_2} --hf-file ${LLAMA_HF_FILE_2} -c 4096 --port 8080 --mlock -ngl 99
     volumes:
       - /var/lib/ai-models/llama:/models
     deploy:
@@ -378,7 +384,10 @@ services:
     memswap_limit: 86g
     environment:
       - LLAMA_ARG_HOST=0.0.0.0
-    command: --hf-repo ${LLAMA_HF_REPO_3} --hf-file ${LLAMA_HF_FILE_3} -c 4096 --port 8080 --mlock
+      - HF_TOKEN=${HF_TOKEN}
+      - HF_HOME=/models/cache
+      - LLAMA_CACHE=/models/cache
+    command: -m /models/${LLAMA_HF_FILE_3} --hf-repo ${LLAMA_HF_REPO_3} --hf-file ${LLAMA_HF_FILE_3} -c 4096 --port 8080 --mlock
     volumes:
       - /var/lib/ai-models/llama:/models
 
