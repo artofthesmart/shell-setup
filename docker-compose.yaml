@@ -148,6 +148,7 @@ services:
       WEBUI_AUTH: "false"
       OLLAMA_HOST: "0.0.0.0"
       OLLAMA_PORT: 11434
+      OLLAMA_NOPRUNE: 1
     volumes:
       - /var/lib/ai-models/ollama/gpu-root:/root/.ollama
       - /var/lib/ai-models/ollama/blobs:/root/.ollama/models/blobs
@@ -195,6 +196,7 @@ services:
       WEBUI_AUTH: "false"
       OLLAMA_HOST: "0.0.0.0"
       OLLAMA_PORT: 11434
+      OLLAMA_NOPRUNE: 1
     volumes:
       - /var/lib/ai-models/ollama/cpu-root:/root/.ollama
       - /var/lib/ai-models/ollama/blobs:/root/.ollama/models/blobs
