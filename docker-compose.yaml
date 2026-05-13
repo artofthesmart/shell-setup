@@ -147,7 +147,7 @@ services:
     environment:
       WEBUI_AUTH: "false"
       OLLAMA_HOST: "0.0.0.0"
-      port: 11434
+      OLLAMA_PORT: 11434
     volumes:
       - /var/lib/ai-models/ollama/gpu-root:/root/.ollama
       - /var/lib/ai-models/ollama/blobs:/root/.ollama/models/blobs
@@ -194,7 +194,7 @@ services:
     environment:
       WEBUI_AUTH: "false"
       OLLAMA_HOST: "0.0.0.0"
-      port: 11434
+      OLLAMA_PORT: 11434
     volumes:
       - /var/lib/ai-models/ollama/cpu-root:/root/.ollama
       - /var/lib/ai-models/ollama/blobs:/root/.ollama/models/blobs
@@ -202,9 +202,50 @@ services:
     deploy:
       resources:
         limits:
-          memory: 90g
+          memory: 80g
         reservations:
-          memory: 76g
+          memory: 80g
+
+# 4.7 service: Unified Ollama Router (Tailscale + Proxy)
+  ts-ollama-router:
+    container_name: ts-ollama-router
+    hostname: ollama
+    image: tailscale/tailscale:latest
+    restart: unless-stopped
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+    volumes:
+      - ts-ollama-router:/var/lib/tailscale
+      - ./config:/config
+      - /dev/net/tun:/dev/net/tun
+    environment:
+      - TS_STATE_DIR=/var/lib/tailscale
+      - TS_AUTH_KEY=${TS_AUTH_KEY}
+      - TS_USERSPACE=false
+      - TS_SERVE_CONFIG=/config/ollama-router.json
+      - "TS_EXTRA_ARGS=--advertise-tags=tag:container --netfilter-mode=off"
+  ollama-router:
+    container_name: ollama-router
+    image: ghcr.io/open-webui/open-webui:main
+    restart: unless-stopped
+    network_mode: service:ts-ollama-router
+    depends_on:
+      - ts-ollama-router
+      - ollama-gpu
+      - ollama-cpu
+    volumes:
+      - ./config/ollama-router.py:/app/router.py:ro
+    command: python /app/router.py
+    environment:
+      - GPU_URL=https://ollama-gpu.bombay-climb.ts.net
+      - CPU_URL=https://ollama-cpu.bombay-climb.ts.net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:11434/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
 
 # 5th service with Tailscale for Stirling PDF
   ts-stirling-pdf:
@@ -493,7 +534,8 @@ volumes:
     driver: local
   ts-vert:
     driver: local
-
+  ts-ollama-router:
+    driver: local
   n8n_storage:
     driver: local
   ts-portainer:

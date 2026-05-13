@@ -1,8 +1,17 @@
 #!/bin/bash
 
+if [ "$1" == "list" ]; then
+  echo "========== GPU Models =========="
+  docker exec -it ollama-gpu ollama list
+  echo "========== CPU Models =========="
+  docker exec -it ollama-cpu ollama list
+  exit 0
+fi
+
 if [ $# -ne 2 ]; then
-  echo "Usage: $0 <gpu|cpu|both> <model_name>"
+  echo "Usage: $0 <gpu|cpu|both|list> [model_name]"
   echo "Example: $0 both llama3"
+  echo "Example: $0 list"
   exit 1
 fi
 
