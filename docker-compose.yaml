@@ -37,7 +37,7 @@ services:
       - ts-open-webui
     environment:
       WEBUI_AUTH: "false"
-      OLLAMA_BASE_URL: "http://ollama.bombay-climb.ts.net"
+      OLLAMA_BASE_URLS: "https://ollama-gpu.bombay-climb.ts.net; https://ollama-cpu.bombay-climb.ts.net"
       PORT: 1000
     volumes:
       - ./open-webui:/app/backend/data
@@ -118,37 +118,40 @@ services:
     volumes:
       - n8n_storage:/home/node/.n8n
 
-# 4th service with Tailscale and Ollama (for direct connections)
-  ts-ollama:
-    container_name: ts-ollama
-    hostname: ollama
+# 4th service: Tailscale and Ollama (dGPU)
+  ts-ollama-gpu:
+    container_name: ts-ollama-gpu
+    hostname: ollama-gpu
     image: tailscale/tailscale:latest
     restart: unless-stopped
     cap_add:
       - NET_ADMIN
       - NET_RAW
     volumes:
-      - ts-ollama:/var/lib/tailscale
+      - ts-ollama-gpu:/var/lib/tailscale
       - ./config:/config
       - /dev/net/tun:/dev/net/tun
     environment:
       - TS_STATE_DIR=/var/lib/tailscale
       - TS_AUTH_KEY=${TS_AUTH_KEY}
       - TS_USERSPACE=false
-      - TS_SERVE_CONFIG=/config/ollama.json
+      - TS_SERVE_CONFIG=/config/ollama-gpu.json
       - "TS_EXTRA_ARGS=--advertise-tags=tag:container --netfilter-mode=off"
-  ollama:
-    container_name: ollama
+  ollama-gpu:
+    container_name: ollama-gpu
     image: ollama/ollama:latest
     restart: unless-stopped
-    network_mode: service:ts-ollama
+    network_mode: service:ts-ollama-gpu
     depends_on:
-      - ts-ollama
+      - ts-ollama-gpu
     environment:
       WEBUI_AUTH: "false"
+      OLLAMA_HOST: "0.0.0.0"
       port: 11434
     volumes:
-      - /var/lib/ai-models/ollama:/root/.ollama
+      - /var/lib/ai-models/ollama/gpu-root:/root/.ollama
+      - /var/lib/ai-models/ollama/blobs:/root/.ollama/models/blobs
+      - /var/lib/ai-models/llama:/models:ro
     deploy:
       resources:
         reservations:
@@ -156,6 +159,52 @@ services:
             - driver: nvidia
               count: all
               capabilities: [gpu]
+
+# 4.5 service: Tailscale and Ollama (CPU/iGPU)
+  ts-ollama-cpu:
+    container_name: ts-ollama-cpu
+    hostname: ollama-cpu
+    image: tailscale/tailscale:latest
+    restart: unless-stopped
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+    volumes:
+      - ts-ollama-cpu:/var/lib/tailscale
+      - ./config:/config
+      - /dev/net/tun:/dev/net/tun
+    environment:
+      - TS_STATE_DIR=/var/lib/tailscale
+      - TS_AUTH_KEY=${TS_AUTH_KEY}
+      - TS_USERSPACE=false
+      - TS_SERVE_CONFIG=/config/ollama-cpu.json
+      - "TS_EXTRA_ARGS=--advertise-tags=tag:container --netfilter-mode=off"
+  ollama-cpu:
+    container_name: ollama-cpu
+    image: ollama/ollama:rocm
+    restart: unless-stopped
+    network_mode: service:ts-ollama-cpu
+    depends_on:
+      - ts-ollama-cpu
+    cap_add:
+      - IPC_LOCK
+    devices:
+      - /dev/dri:/dev/dri
+      - /dev/kfd:/dev/kfd
+    environment:
+      WEBUI_AUTH: "false"
+      OLLAMA_HOST: "0.0.0.0"
+      port: 11434
+    volumes:
+      - /var/lib/ai-models/ollama/cpu-root:/root/.ollama
+      - /var/lib/ai-models/ollama/blobs:/root/.ollama/models/blobs
+      - /var/lib/ai-models/llama:/models:ro
+    deploy:
+      resources:
+        limits:
+          memory: 90g
+        reservations:
+          memory: 76g
 
 # 5th service with Tailscale for Stirling PDF
   ts-stirling-pdf:
@@ -246,7 +295,7 @@ services:
     container_name: ts-${LLAMA_NAME_1}
     hostname: ${LLAMA_NAME_1}
     image: tailscale/tailscale:latest
-    restart: unless-stopped
+    restart: "no"
     cap_add:
       - NET_ADMIN
       - NET_RAW
@@ -264,7 +313,7 @@ services:
     container_name: ${LLAMA_NAME_1}
     image: ghcr.io/ggml-org/llama.cpp:server-cuda
     profiles: ["manual"]
-    restart: unless-stopped
+    restart: "no"
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
       interval: 30s
@@ -297,7 +346,7 @@ services:
     container_name: ts-${LLAMA_NAME_2}
     hostname: ${LLAMA_NAME_2}
     image: tailscale/tailscale:latest
-    restart: unless-stopped
+    restart: "no"
     cap_add:
       - NET_ADMIN
       - NET_RAW
@@ -315,7 +364,7 @@ services:
     container_name: ${LLAMA_NAME_2}
     image: ghcr.io/ggml-org/llama.cpp:server-cuda
     profiles: ["manual"]
-    restart: unless-stopped
+    restart: "no"
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
       interval: 30s
@@ -348,7 +397,7 @@ services:
     container_name: ts-${LLAMA_NAME_3}
     hostname: ${LLAMA_NAME_3}
     image: tailscale/tailscale:latest
-    restart: unless-stopped
+    restart: "no"
     cap_add:
       - NET_ADMIN
       - NET_RAW
@@ -366,7 +415,7 @@ services:
     container_name: ${LLAMA_NAME_3}
     image: ghcr.io/ggml-org/llama.cpp:server
     profiles: ["manual"]
-    restart: unless-stopped
+    restart: "no"
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
       interval: 30s
@@ -428,7 +477,9 @@ volumes:
     driver: local
   ts-n8n:
     driver: local
-  ts-ollama:
+  ts-ollama-gpu:
+    driver: local
+  ts-ollama-cpu:
     driver: local
   ts-stirling-pdf:
     driver: local

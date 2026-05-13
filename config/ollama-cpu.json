@@ -1,0 +1,29 @@
+{
+  "TCP": {
+    "443": {
+      "HTTPS": true
+    },
+    "80": {
+      "HTTP": true
+    }
+  },
+  "Web": {
+    "${TS_CERT_DOMAIN}:443": {
+      "Handlers": {
+        "/": {
+          "Proxy": "http://127.0.0.1:11434"
+        }
+      }
+    },
+    "${TS_CERT_DOMAIN}:80": {
+      "Handlers": {
+        "/": {
+          "HTTPSRedirect": true
+        }
+      }
+    }
+  },
+  "AllowFunnel": {
+    "${TS_CERT_DOMAIN}:443": false
+  }
+}
