@@ -141,6 +141,7 @@ services:
     container_name: ollama-gpu
     image: ollama/ollama:latest
     restart: unless-stopped
+    runtime: nvidia
     network_mode: service:ts-ollama-gpu
     depends_on:
       - ts-ollama-gpu
