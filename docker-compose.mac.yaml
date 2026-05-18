@@ -1,15 +1,19 @@
-# This configuration contains my attempt at creating an all-in-one locally hosted AI
-# setup suitable for Linux. 
-# - Includes InvokeAI, OpenWebUI (with Ollama), n8n, Stirling PDF, and Vert. 
-# - Uses Tailscale for secure remote access.
+# MacOS (Apple Silicon M-Series) Configuration
+# --------------------------------------------
+# ArtOfTheSmart.com | 2026-05-17
 # 
-# ArtOfTheSmart.com | 2026-05-03
+# Note: On macOS, Docker runs inside a lightweight Linux VM. Native GPU pass-through 
+# (like NVIDIA CUDA or AMD ROCm) is not fully supported in the same way as Linux.
+# The services in this file have been adapted to run safely on your M4 Macbook Pro.
+# 
+# PRO TIP: For optimal generation speeds on Apple Silicon, it is highly recommended 
+# to run Ollama natively via the macOS app and point Open-WebUI to `host.docker.internal:11434`.
 
 name: aots-ai-config
 
 services:
 
-# 1st service with Tailscale and GPU access for OpenWebUI
+# 1st service with Tailscale for OpenWebUI
   ts-open-webui:
     container_name: ts-open-webui
     hostname: openwebui
@@ -41,16 +45,8 @@ services:
       PORT: 1000
     volumes:
       - ./open-webui:/app/backend/data
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: all
-              capabilities: [gpu]
 
-
-# 2nd service with Tailscale and GPU access for InvokeAI
+# 2nd service with Tailscale for InvokeAI
   ts-invokeai:
     container_name: ts-invokeai
     hostname: invokeai
@@ -76,13 +72,6 @@ services:
     network_mode: service:ts-invokeai
     depends_on:
       - ts-invokeai
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: all
-              capabilities: [gpu]
     volumes:
       - ./invokeai:/invokeai
 
@@ -118,7 +107,7 @@ services:
     volumes:
       - n8n_storage:/home/node/.n8n
 
-# 4th service: Tailscale and Ollama (dGPU)
+# 4th service: Tailscale and Ollama (Primary)
   ts-ollama-gpu:
     container_name: ts-ollama-gpu
     hostname: ollama-gpu
@@ -141,7 +130,6 @@ services:
     container_name: ollama-gpu
     image: ollama/ollama:latest
     restart: unless-stopped
-    runtime: nvidia
     network_mode: service:ts-ollama-gpu
     depends_on:
       - ts-ollama-gpu
@@ -154,15 +142,8 @@ services:
       - /var/lib/ai-models/ollama/gpu-root:/root/.ollama
       - /var/lib/ai-models/ollama/blobs:/root/.ollama/models/blobs
       - /var/lib/ai-models/llama:/models:ro
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: all
-              capabilities: [gpu]
 
-# 4.5 service: Tailscale and Ollama (CPU/iGPU)
+# 4.5 service: Tailscale and Ollama (Secondary)
   ts-ollama-cpu:
     container_name: ts-ollama-cpu
     hostname: ollama-cpu
@@ -190,24 +171,11 @@ services:
       - ts-ollama-cpu
     cap_add:
       - IPC_LOCK
-    devices:
-      - /dev/dri:/dev/dri
-      - /dev/kfd:/dev/kfd
-    group_add:
-      - "990"  # render (host GID)
-      - "44"   # video  (host GID)
     environment:
       WEBUI_AUTH: "false"
       OLLAMA_HOST: "0.0.0.0"
       OLLAMA_PORT: 11434
       OLLAMA_NOPRUNE: 1
-      # Force ROCm to treat Granite Ridge (gfx1150/RDNA 3.5) as gfx1150-compatible.
-      # Without this, ROCm cannot detect the iGPU and Ollama silently falls back to CPU.
-      # 11.5.0 maps closer to gfx1150 than 11.0.0 (gfx1100).
-      HSA_OVERRIDE_GFX_VERSION: "11.5.0"
-      # Vulkan backend: acts as a fallback if ROCm discovery crashes (runner crashed error).
-      # Vulkan bypasses ROCm's strict architecture checks and works on gfx1150 natively.
-      OLLAMA_VULKAN: "1"
     volumes:
       - /var/lib/ai-models/ollama/cpu-root:/root/.ollama
       - /var/lib/ai-models/ollama/blobs:/root/.ollama/models/blobs
@@ -365,7 +333,8 @@ services:
       - "TS_EXTRA_ARGS=--advertise-tags=tag:container --netfilter-mode=off"
   llama-cpp-1:
     container_name: ${LLAMA_NAME_1}
-    image: ghcr.io/ggml-org/llama.cpp:server-cuda
+    # Changed from server-cuda to server for Mac compatibility
+    image: ghcr.io/ggml-org/llama.cpp:server
     profiles: ["manual"]
     restart: "no"
     healthcheck:
@@ -384,16 +353,9 @@ services:
       - HF_TOKEN=${HF_TOKEN}
       - HF_HOME=/models/cache
       - LLAMA_CACHE=/models/cache
-    command: -m /models/${LLAMA_HF_FILE_1} --hf-repo ${LLAMA_HF_REPO_1} --hf-file ${LLAMA_HF_FILE_1} -c 4096 --port 8080 --mlock -ngl 99
+    command: -m /models/${LLAMA_HF_FILE_1} --hf-repo ${LLAMA_HF_REPO_1} --hf-file ${LLAMA_HF_FILE_1} -c 4096 --port 8080 --mlock
     volumes:
       - /var/lib/ai-models/llama:/models
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: all
-              capabilities: [gpu]
 
 # 9th service: llama.cpp Instance 2
   ts-llama-cpp-2:
@@ -416,7 +378,8 @@ services:
       - "TS_EXTRA_ARGS=--advertise-tags=tag:container --netfilter-mode=off"
   llama-cpp-2:
     container_name: ${LLAMA_NAME_2}
-    image: ghcr.io/ggml-org/llama.cpp:server-cuda
+    # Changed from server-cuda to server for Mac compatibility
+    image: ghcr.io/ggml-org/llama.cpp:server
     profiles: ["manual"]
     restart: "no"
     healthcheck:
@@ -435,18 +398,11 @@ services:
       - HF_TOKEN=${HF_TOKEN}
       - HF_HOME=/models/cache
       - LLAMA_CACHE=/models/cache
-    command: -m /models/${LLAMA_HF_FILE_2} --hf-repo ${LLAMA_HF_REPO_2} --hf-file ${LLAMA_HF_FILE_2} -c 4096 --port 8080 --mlock -ngl 99
+    command: -m /models/${LLAMA_HF_FILE_2} --hf-repo ${LLAMA_HF_REPO_2} --hf-file ${LLAMA_HF_FILE_2} -c 4096 --port 8080 --mlock
     volumes:
       - /var/lib/ai-models/llama:/models
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: all
-              capabilities: [gpu]
 
-# 10th service: llama.cpp Instance 3 (CPU/iGPU only)
+# 10th service: llama.cpp Instance 3
   ts-llama-cpp-3:
     container_name: ts-${LLAMA_NAME_3}
     hostname: ${LLAMA_NAME_3}
@@ -479,8 +435,6 @@ services:
     network_mode: service:ts-llama-cpp-3
     depends_on:
       - ts-llama-cpp-3
-    devices:
-      - /dev/dri:/dev/dri
     cap_add:
       - IPC_LOCK
     mem_limit: 90g
@@ -555,7 +509,6 @@ services:
       OPENAI_API_BASE: "https://ollama-gpu.bombay-climb.ts.net/v1"
       OLLAMA_BASE_URL: "https://ollama-gpu.bombay-climb.ts.net"
       LLM_PROVIDER: "ollama"
-      # Feel free to change FAST_LLM and SMART_LLM in your .env file
       FAST_LLM: ${FAST_LLM}
       SMART_LLM: ${SMART_LLM}
       EMBEDDING_PROVIDER: "ollama"
@@ -563,7 +516,6 @@ services:
       TAVILY_API_KEY: ${TAVILY_API_KEY}
       LANGCHAIN_API_KEY: ${LANGCHAIN_API_KEY}
       LOGGING_LEVEL: INFO
-      # Image generation (optional - set to enable inline images in reports)
       GOOGLE_API_KEY: ${GOOGLE_API_KEY}
       IMAGE_GENERATION_ENABLED: ${IMAGE_GENERATION_ENABLED:-false}
       IMAGE_GENERATION_MODEL: ${IMAGE_GENERATION_MODEL:-gemini-2.0-flash-preview-image-generation}
