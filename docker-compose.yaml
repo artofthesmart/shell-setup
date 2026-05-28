@@ -37,7 +37,7 @@ services:
       - ts-open-webui
     environment:
       WEBUI_AUTH: "false"
-      OLLAMA_BASE_URLS: "https://ollama-gpu.bombay-climb.ts.net" #; https://ollama-cpu.bombay-climb.ts.net"
+      OLLAMA_BASE_URLS: "https://ollama-cpu.bombay-climb.ts.net"
       PORT: 1000
     volumes:
       - ./open-webui:/app/backend/data
@@ -190,24 +190,11 @@ services:
       - ts-ollama-cpu
     cap_add:
       - IPC_LOCK
-    devices:
-      - /dev/dri:/dev/dri
-      - /dev/kfd:/dev/kfd
-    group_add:
-      - "990"  # render (host GID)
-      - "44"   # video  (host GID)
     environment:
       WEBUI_AUTH: "false"
       OLLAMA_HOST: "0.0.0.0"
       OLLAMA_PORT: 11434
       OLLAMA_NOPRUNE: 1
-      # Force ROCm to treat Granite Ridge (gfx1150/RDNA 3.5) as gfx1150-compatible.
-      # Without this, ROCm cannot detect the iGPU and Ollama silently falls back to CPU.
-      # 11.5.0 maps closer to gfx1150 than 11.0.0 (gfx1100).
-      HSA_OVERRIDE_GFX_VERSION: "11.5.0"
-      # Vulkan backend: acts as a fallback if ROCm discovery crashes (runner crashed error).
-      # Vulkan bypasses ROCm's strict architecture checks and works on gfx1150 natively.
-      OLLAMA_VULKAN: "1"
     volumes:
       - /var/lib/ai-models/ollama/cpu-root:/root/.ollama
       - /var/lib/ai-models/ollama/blobs:/root/.ollama/models/blobs
@@ -573,6 +560,38 @@ services:
       - ./outputs:/usr/src/app/outputs:rw
       - ./logs:/usr/src/app/logs:rw
 
+# 13th service: Kokoro Web
+  ts-kokoro:
+    container_name: ts-kokoro
+    hostname: kokoro
+    image: tailscale/tailscale:latest
+    restart: unless-stopped
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+    volumes:
+      - ts-kokoro:/var/lib/tailscale
+      - ./config:/config
+      - /dev/net/tun:/dev/net/tun
+    environment:
+      - TS_STATE_DIR=/var/lib/tailscale
+      - TS_AUTH_KEY=${TS_AUTH_KEY}
+      - TS_USERSPACE=false
+      - TS_SERVE_CONFIG=/config/kokoro.json
+      - "TS_EXTRA_ARGS=--advertise-tags=tag:container --netfilter-mode=off"
+  kokoro-web:
+    container_name: kokoro-web
+    image: ghcr.io/eduardolat/kokoro-web:latest
+    restart: unless-stopped
+    network_mode: service:ts-kokoro
+    depends_on:
+      - ts-kokoro
+    environment:
+      # Change this to any secret key to use as your OpenAI compatible API key
+      - KW_SECRET_API_KEY=${KW_SECRET_API_KEY:-your-api-key}
+    volumes:
+      - ./kokoro-cache:/kokoro/cache
+
 volumes:
   ts-open-webui: 
     driver: local
@@ -605,4 +624,6 @@ volumes:
   portainer_data:
     driver: local
   ts-gpt-researcher:
+    driver: local
+  ts-kokoro:
     driver: local

@@ -46,11 +46,47 @@ if [ "$1" == "list" ]; then
   exit 0
 fi
 
+if [ "$1" == "refresh" ]; then
+  TARGET_INPUT=$2
+  # Shift out 'refresh' so that the rest of the script processes it as a normal pull
+  shift
+  
+  # Parse the model name to remove it
+  TEMP_MODEL=""
+  for arg in "$@"; do
+    case $arg in
+      --name=*) TEMP_MODEL="${arg#*=}" ;;
+      --model=*) [ -z "$TEMP_MODEL" ] && TEMP_MODEL="${arg#*=}" ;;
+      *) [ -z "$TEMP_MODEL" ] && [ "$arg" != "$TARGET_INPUT" ] && TEMP_MODEL="$arg" ;;
+    esac
+  done
+
+  if [ -z "$TARGET_INPUT" ] || [ -z "$TEMP_MODEL" ]; then
+    echo "Usage: $0 refresh <gpu|cpu|both> <model_name>"
+    exit 1
+  fi
+
+  if [ "$TARGET_INPUT" == "both" ]; then
+    TARGETS=("gpu" "cpu")
+  else
+    TARGETS=("$TARGET_INPUT")
+  fi
+
+  for TARGET in "${TARGETS[@]}"; do
+    echo "♻️ Refreshing: Removing $TEMP_MODEL from ollama-$TARGET before pulling..."
+    docker exec -it "ollama-$TARGET" ollama rm "$TEMP_MODEL" >/dev/null 2>&1 || true
+    # Also attempt to remove the suffix tagged version if applicable
+    docker exec -it "ollama-$TARGET" ollama rm "${TEMP_MODEL}-${TARGET}" >/dev/null 2>&1 || true
+  done
+  # Now let it fall through to the pull logic
+fi
+
 if [ $# -lt 2 ]; then
-  echo "Usage: $0 <gpu|cpu|both|list|rm> [--name=model_name] [--model=source_model]"
+  echo "Usage: $0 <gpu|cpu|both|list|rm|refresh> [--name=model_name] [--model=source_model]"
   echo "Example: $0 both llama3"
   echo "Example: $0 gpu --name=qwen3-coder-next:80b --model=hf.co/unsloth/Qwen3-Coder-Next-GGUF:UD-Q4_K_M"
   echo "Example: $0 rm gpu llama3-gpu"
+  echo "Example: $0 refresh both llama3"
   echo "Example: $0 list"
   exit 1
 fi
