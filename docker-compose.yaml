@@ -305,9 +305,9 @@ services:
     depends_on:
       - ts-vert
 
-# 7th service with Tailscale for Grav Control Plane
-  ts-grav-control:
-    container_name: ts-grav-control
+# 7th service with Tailscale for Grav
+  ts-grav:
+    container_name: ts-grav
     hostname: grav
     image: tailscale/tailscale:latest
     restart: unless-stopped
@@ -324,13 +324,13 @@ services:
       - TS_USERSPACE=false
       - TS_SERVE_CONFIG=/config/grav.json
       - "TS_EXTRA_ARGS=--advertise-tags=tag:container --netfilter-mode=off"
-  grav-control:
-    container_name: grav-control
+  grav:
+    container_name: grav
     image: lscr.io/linuxserver/grav:latest
     restart: unless-stopped
-    network_mode: service:ts-grav-control
+    network_mode: service:ts-grav
     depends_on:
-      - ts-grav-control
+      - ts-grav
     environment:
       - PUID=1000
       - PGID=1000
@@ -378,7 +378,7 @@ services:
       - HF_TOKEN=${HF_TOKEN}
       - HF_HOME=/models/cache
       - LLAMA_CACHE=/models/cache
-    command: -m /models/${LLAMA_HF_FILE_1} --hf-repo ${LLAMA_HF_REPO_1} --hf-file ${LLAMA_HF_FILE_1} -c 4096 --port 8080 --mlock -ngl 99
+    command: --hf-repo ${LLAMA_HF_REPO_1} --hf-file ${LLAMA_HF_FILE_1} -c 32768 --port 8080 --mlock -ngl 99
     volumes:
       - /var/lib/ai-models/llama:/models
     deploy:
@@ -429,7 +429,7 @@ services:
       - HF_TOKEN=${HF_TOKEN}
       - HF_HOME=/models/cache
       - LLAMA_CACHE=/models/cache
-    command: -m /models/${LLAMA_HF_FILE_2} --hf-repo ${LLAMA_HF_REPO_2} --hf-file ${LLAMA_HF_FILE_2} -c 4096 --port 8080 --mlock -ngl 99
+    command: --hf-repo ${LLAMA_HF_REPO_2} --hf-file ${LLAMA_HF_FILE_2} -c 65536 --port 8080 --mlock -ngl 99
     volumes:
       - /var/lib/ai-models/llama:/models
     deploy:
@@ -477,14 +477,14 @@ services:
       - /dev/dri:/dev/dri
     cap_add:
       - IPC_LOCK
-    mem_limit: 90g
-    memswap_limit: 90g
+    mem_limit: 86g
+    memswap_limit: 86g
     environment:
       - LLAMA_ARG_HOST=0.0.0.0
       - HF_TOKEN=${HF_TOKEN}
       - HF_HOME=/models/cache
       - LLAMA_CACHE=/models/cache
-    command: -m /models/${LLAMA_HF_FILE_3} --hf-repo ${LLAMA_HF_REPO_3} --hf-file ${LLAMA_HF_FILE_3} -c 4096 --port 8080 --mlock
+    command: --hf-repo ${LLAMA_HF_REPO_3} --hf-file ${LLAMA_HF_FILE_3} -c 16384 --port 8080 -t 16
     volumes:
       - /var/lib/ai-models/llama:/models
 
@@ -599,6 +599,40 @@ services:
     volumes:
       - ./kokoro-cache:/kokoro/cache
 
+# 14th service: Metatonic OpenedAI Speech
+  ts-metatonic:
+    container_name: ts-metatonic
+    hostname: metatonic
+    image: tailscale/tailscale:latest
+    restart: unless-stopped
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+    volumes:
+      - ts-metatonic:/var/lib/tailscale
+      - ./config:/config
+      - /dev/net/tun:/dev/net/tun
+    environment:
+      - TS_STATE_DIR=/var/lib/tailscale
+      - TS_AUTH_KEY=${TS_AUTH_KEY}
+      - TS_USERSPACE=false
+      - TS_SERVE_CONFIG=/config/metatonic.json
+      - "TS_EXTRA_ARGS=--advertise-tags=tag:container --netfilter-mode=off"
+  metatonic:
+    container_name: metatonic
+    image: ghcr.io/matatonic/openedai-speech:latest
+    restart: unless-stopped
+    network_mode: service:ts-metatonic
+    depends_on:
+      - ts-metatonic
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+
 volumes:
   ts-open-webui: 
     driver: local
@@ -633,4 +667,6 @@ volumes:
   ts-gpt-researcher:
     driver: local
   ts-kokoro:
+    driver: local
+  ts-metatonic:
     driver: local
