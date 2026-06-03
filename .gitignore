@@ -18,6 +18,7 @@ Thumbs.db
 open-webui/
 invokeai/
 local-files/
+grav_workspace/
 
 # Python Cruft
 __pycache__/

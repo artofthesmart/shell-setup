@@ -38,6 +38,8 @@ services:
     environment:
       WEBUI_AUTH: "false"
       OLLAMA_BASE_URLS: "https://ollama-cpu.bombay-climb.ts.net"
+      OPENAI_API_BASE_URLS: "https://code-llm.bombay-climb.ts.net/v1;https://flash-llm.bombay-climb.ts.net/v1;https://large-llm.bombay-climb.ts.net/v1"
+      OPENAI_API_KEYS: "none;none;none"
       PORT: 1000
     volumes:
       - ./open-webui:/app/backend/data
@@ -324,12 +326,17 @@ services:
       - "TS_EXTRA_ARGS=--advertise-tags=tag:container --netfilter-mode=off"
   grav-control:
     container_name: grav-control
-    build:
-      context: ./grav-control
+    image: lscr.io/linuxserver/grav:latest
     restart: unless-stopped
     network_mode: service:ts-grav-control
     depends_on:
       - ts-grav-control
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Etc/UTC
+    volumes:
+      - ./grav_workspace:/config/www
 
 # 8th service: llama.cpp Instance 1
   ts-llama-cpp-1:
@@ -586,9 +593,9 @@ services:
     network_mode: service:ts-kokoro
     depends_on:
       - ts-kokoro
-    environment:
+    #environment:
       # Change this to any secret key to use as your OpenAI compatible API key
-      - KW_SECRET_API_KEY=${KW_SECRET_API_KEY:-your-api-key}
+      # - KW_SECRET_API_KEY=${KW_SECRET_API_KEY:-your-api-key}
     volumes:
       - ./kokoro-cache:/kokoro/cache
 
