@@ -216,7 +216,7 @@ services:
     container_name: ts-ollama-router
     hostname: ollama
     image: tailscale/tailscale:latest
-    restart: "no"
+    restart: unless-stopped
     cap_add:
       - NET_ADMIN
       - NET_RAW
@@ -349,7 +349,7 @@ services:
     container_name: ts-${LLAMA_NAME_1}
     hostname: ${LLAMA_NAME_1}
     image: tailscale/tailscale:latest
-    restart: "no"
+    restart: unless-stopped
     cap_add:
       - NET_ADMIN
       - NET_RAW
@@ -400,7 +400,7 @@ services:
     container_name: ts-${LLAMA_NAME_2}
     hostname: ${LLAMA_NAME_2}
     image: tailscale/tailscale:latest
-    restart: "no"
+    restart: unless-stopped
     cap_add:
       - NET_ADMIN
       - NET_RAW
@@ -451,7 +451,7 @@ services:
     container_name: ts-${LLAMA_NAME_3}
     hostname: ${LLAMA_NAME_3}
     image: tailscale/tailscale:latest
-    restart: "no"
+    restart: unless-stopped
     cap_add:
       - NET_ADMIN
       - NET_RAW
@@ -499,7 +499,7 @@ services:
     container_name: ts-${LLAMA_NAME_4}
     hostname: ${LLAMA_NAME_4}
     image: tailscale/tailscale:latest
-    restart: "no"
+    restart: unless-stopped
     cap_add:
       - NET_ADMIN
       - NET_RAW
@@ -577,7 +577,7 @@ services:
     container_name: ts-gpt-researcher
     hostname: gpt-researcher
     image: tailscale/tailscale:latest
-    restart: "no"
+    restart: unless-stopped
     cap_add:
       - NET_ADMIN
       - NET_RAW
@@ -627,7 +627,7 @@ services:
     container_name: ts-kokoro
     hostname: kokoro
     image: tailscale/tailscale:latest
-    restart: "no"
+    restart: unless-stopped
     cap_add:
       - NET_ADMIN
       - NET_RAW
@@ -660,7 +660,7 @@ services:
     container_name: ts-metatonic
     hostname: metatonic
     image: tailscale/tailscale:latest
-    restart: "no"
+    restart: unless-stopped
     cap_add:
       - NET_ADMIN
       - NET_RAW
