@@ -38,8 +38,8 @@ services:
     environment:
       WEBUI_AUTH: "false"
       OLLAMA_BASE_URLS: "https://ollama-cpu.bombay-climb.ts.net"
-      OPENAI_API_BASE_URLS: "https://code-llm.bombay-climb.ts.net/v1;https://flash-llm.bombay-climb.ts.net/v1;https://large-llm.bombay-climb.ts.net/v1"
-      OPENAI_API_KEYS: "none;none;none"
+      OPENAI_API_BASE_URLS: "https://code-llm.bombay-climb.ts.net/v1;https://flash-llm.bombay-climb.ts.net/v1;https://large-llm.bombay-climb.ts.net/v1;https://mini-llm.bombay-climb.ts.net/v1"
+      OPENAI_API_KEYS: "none;none;none;none"
       PORT: 1000
     volumes:
       - ./open-webui:/app/backend/data
@@ -93,7 +93,7 @@ services:
     container_name: ts-n8n
     hostname: n8n
     image: tailscale/tailscale:latest
-    restart: "no"
+    restart: unless-stopped
     cap_add:
       - NET_ADMIN
       - NET_RAW
@@ -111,7 +111,7 @@ services:
     container_name: n8n
     image: docker.n8n.io/n8nio/n8n
     profiles: ["manual"]
-    restart: "no"
+    restart: unless-stopped
     network_mode: service:ts-n8n
     depends_on:
       ts-n8n:
@@ -126,7 +126,7 @@ services:
     container_name: ts-ollama-gpu
     hostname: ollama-gpu
     image: tailscale/tailscale:latest
-    restart: "no"
+    restart: unless-stopped
     cap_add:
       - NET_ADMIN
       - NET_RAW
@@ -144,7 +144,7 @@ services:
     container_name: ollama-gpu
     image: ollama/ollama:latest
     profiles: ["manual"]
-    restart: "no"
+     restart: unless-stopped
     runtime: nvidia
     network_mode: service:ts-ollama-gpu
     depends_on:
@@ -171,7 +171,7 @@ services:
     container_name: ts-ollama-cpu
     hostname: ollama-cpu
     image: tailscale/tailscale:latest
-    restart: "no"
+    restart: unless-stopped
     cap_add:
       - NET_ADMIN
       - NET_RAW
@@ -435,7 +435,7 @@ services:
       - HF_TOKEN=${HF_TOKEN}
       - HF_HOME=/models/cache
       - LLAMA_CACHE=/models/cache
-    command: --hf-repo ${LLAMA_HF_REPO_2} --hf-file ${LLAMA_HF_FILE_2} -c 65536 --port 8080 --mlock -ngl 99
+    command: --hf-repo ${LLAMA_HF_REPO_2} --hf-file ${LLAMA_HF_FILE_2} -c 131072 --port 8080 --mlock -ngl 99
     volumes:
       - /var/lib/ai-models/llama:/models
     deploy:
@@ -494,7 +494,55 @@ services:
     volumes:
       - /var/lib/ai-models/llama:/models
 
-# 11th service: Portainer for GUI management
+# 11th service: llama.cpp Instance 4 (CPU only, small/fast)
+  ts-llama-cpp-4:
+    container_name: ts-${LLAMA_NAME_4}
+    hostname: ${LLAMA_NAME_4}
+    image: tailscale/tailscale:latest
+    restart: "no"
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+    volumes:
+      - ts-llama-cpp-4:/var/lib/tailscale
+      - ./config:/config
+      - /dev/net/tun:/dev/net/tun
+    environment:
+      - TS_STATE_DIR=/var/lib/tailscale
+      - TS_AUTH_KEY=${TS_AUTH_KEY}
+      - TS_USERSPACE=false
+      - TS_SERVE_CONFIG=/config/llama-cpp-4.json
+      - "TS_EXTRA_ARGS=--advertise-tags=tag:container --netfilter-mode=off"
+  llama-cpp-4:
+    container_name: ${LLAMA_NAME_4}
+    image: ghcr.io/ggml-org/llama.cpp:server
+    profiles: ["manual"]
+    restart: "no"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 300s
+    network_mode: service:ts-llama-cpp-4
+    depends_on:
+      - ts-llama-cpp-4
+    devices:
+      - /dev/dri:/dev/dri
+    cap_add:
+      - IPC_LOCK
+    mem_limit: 64g
+    memswap_limit: 64g
+    environment:
+      - LLAMA_ARG_HOST=0.0.0.0
+      - HF_TOKEN=${HF_TOKEN}
+      - HF_HOME=/models/cache
+      - LLAMA_CACHE=/models/cache
+    command: --hf-repo ${LLAMA_HF_REPO_4} --hf-file ${LLAMA_HF_FILE_4} -c 262144 --port 8080 -t 16
+    volumes:
+      - /var/lib/ai-models/llama:/models
+
+# 12th service: Portainer for GUI management
   ts-portainer:
     container_name: ts-portainer
     hostname: portainer
@@ -662,6 +710,8 @@ volumes:
   ts-llama-cpp-2:
     driver: local
   ts-llama-cpp-3:
+    driver: local
+  ts-llama-cpp-4:
     driver: local
   ts-vert:
     driver: local
