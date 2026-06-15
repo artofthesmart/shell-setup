@@ -525,6 +525,36 @@ services:
       - ./outputs:/usr/src/app/outputs:rw
       - ./logs:/usr/src/app/logs:rw
 
+# 15th service: LiteLLM Gateway
+  ts-litellm:
+    container_name: ts-litellm
+    hostname: litellm
+    image: tailscale/tailscale:latest
+    restart: unless-stopped
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+    volumes:
+      - ts-litellm:/var/lib/tailscale
+      - ./config:/config
+      - /dev/net/tun:/dev/net/tun
+    environment:
+      - TS_STATE_DIR=/var/lib/tailscale
+      - TS_AUTH_KEY=${TS_AUTH_KEY}
+      - TS_USERSPACE=false
+      - TS_SERVE_CONFIG=/config/litellm.json
+      - "TS_EXTRA_ARGS=--advertise-tags=tag:container --netfilter-mode=off"
+  litellm:
+    container_name: litellm
+    image: ghcr.io/berriai/litellm:latest
+    restart: unless-stopped
+    network_mode: service:ts-litellm
+    depends_on:
+      - ts-litellm
+    volumes:
+      - ./config/litellm-config.yaml:/app/config.yaml:ro
+    command: --config /app/config.yaml --port 4000
+
 volumes:
   ts-open-webui: 
     driver: local
@@ -557,4 +587,6 @@ volumes:
   portainer_data:
     driver: local
   ts-gpt-researcher:
+    driver: local
+  ts-litellm:
     driver: local

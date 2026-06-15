@@ -1,0 +1,70 @@
+model_list:
+  # Individual models — target a specific instance directly by name
+  - model_name: code-llm
+    litellm_params:
+      model: openai/code-llm
+      api_base: https://code-llm.bombay-climb.ts.net/v1
+      api_key: "none"
+    model_info:
+      max_tokens: 64000
+  - model_name: flash-llm
+    litellm_params:
+      model: openai/flash-llm
+      api_base: https://flash-llm.bombay-climb.ts.net/v1
+      api_key: "none"
+    model_info:
+      max_tokens: 131072
+  - model_name: large-llm
+    litellm_params:
+      model: openai/large-llm
+      api_base: https://large-llm.bombay-climb.ts.net/v1
+      api_key: "none"
+    model_info:
+      max_tokens: 64000
+  - model_name: mini-llm
+    litellm_params:
+      model: openai/mini-llm
+      api_base: https://mini-llm.bombay-climb.ts.net/v1
+      api_key: "none"
+    model_info:
+      max_tokens: 262144
+
+  # Catch-all — routes to whichever backend is healthy/active
+  - model_name: llama-cpp
+    litellm_params:
+      model: openai/code-llm
+      api_base: https://code-llm.bombay-climb.ts.net/v1
+      api_key: "none"
+    model_info:
+      max_tokens: 64000
+  - model_name: llama-cpp
+    litellm_params:
+      model: openai/flash-llm
+      api_base: https://flash-llm.bombay-climb.ts.net/v1
+      api_key: "none"
+    model_info:
+      max_tokens: 131072
+  - model_name: llama-cpp
+    litellm_params:
+      model: openai/large-llm
+      api_base: https://large-llm.bombay-climb.ts.net/v1
+      api_key: "none"
+    model_info:
+      max_tokens: 64000
+  - model_name: llama-cpp
+    litellm_params:
+      model: openai/mini-llm
+      api_base: https://mini-llm.bombay-climb.ts.net/v1
+      api_key: "none"
+    model_info:
+      max_tokens: 262144
+
+router_settings:
+  routing_strategy: simple-shuffle
+  allowed_fails: 3
+  cooldown_time: 15
+
+litellm_settings:
+  # Tailscale TLS certs are not in the container's default CA store.
+  # Connections are already secured by Tailscale's ACLs.
+  ssl_verify: false

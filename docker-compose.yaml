@@ -40,6 +40,7 @@ services:
       OLLAMA_BASE_URLS: "https://ollama-cpu.bombay-climb.ts.net"
       OPENAI_API_BASE_URLS: "https://code-llm.bombay-climb.ts.net/v1;https://flash-llm.bombay-climb.ts.net/v1;https://large-llm.bombay-climb.ts.net/v1;https://mini-llm.bombay-climb.ts.net/v1"
       OPENAI_API_KEYS: "none;none;none;none"
+      ENABLE_API_KEYS: "true"
       PORT: 1000
     volumes:
       - ./open-webui:/app/backend/data
@@ -144,7 +145,7 @@ services:
     container_name: ollama-gpu
     image: ollama/ollama:latest
     profiles: ["manual"]
-     restart: unless-stopped
+    restart: unless-stopped
     runtime: nvidia
     network_mode: service:ts-ollama-gpu
     depends_on:
@@ -330,18 +331,33 @@ services:
       - "TS_EXTRA_ARGS=--advertise-tags=tag:container --netfilter-mode=off"
   grav:
     container_name: grav
-    image: lscr.io/linuxserver/grav:latest
+    # Custom build extending getgrav/grav:latest.
+    # Overrides entrypoint to support RC/prerelease tags (downloaded from GitHub,
+    # not getgrav.org which only serves stable/beta-channel builds).
+    build:
+      context: ./config/grav
+      dockerfile: Dockerfile
     restart: unless-stopped
     network_mode: service:ts-grav
     depends_on:
       - ts-grav
     environment:
-      - PUID=1000
-      - PGID=1000
-      - TZ=Etc/UTC
+      # Explicit RC version tag - GRAV_CHANNEL=beta still serves 1.7.x via getgrav.org.
+      # Setting GRAV_VERSION bypasses channel logic and downloads directly by tag.
+      # Check https://github.com/getgrav/grav/releases for newer RCs.
+      - GRAV_VERSION=2.0.0-rc.7
+      - GRAV_SCHEDULER=true
+      # Public-facing URL injected into system.yaml so the admin2 SPA knows
+      # the correct serverUrl when Apache sits behind the Tailscale sidecar.
+      - GRAV_BASE_URL=https://grav.bombay-climb.ts.net
+      # Shared group (grav-data, GID 1033) gives www-data write access to the
+      # workspace without changing its UID — the container process stays as
+      # UID 33, not the host user, for better containment on escape.
+      - PGID=1033
     volumes:
-      - /home/user/grav_workspace:/config/www
-      - /home/user/Github/shell-setup/config/grav-nginx.conf:/config/nginx/site-confs/default.conf:ro
+      # Main Grav workspace (user content, config, plugins, etc.)
+      - /home/user/grav_workspace:/var/www/html
+      # Theme source directory mounted so symlinks inside the container can resolve it
       - /home/user/Github/hypertext:/home/user/Github/hypertext:ro
 
 # 8th service: llama.cpp Instance 1
@@ -467,7 +483,9 @@ services:
       - "TS_EXTRA_ARGS=--advertise-tags=tag:container --netfilter-mode=off"
   llama-cpp-3:
     container_name: ${LLAMA_NAME_3}
-    image: ghcr.io/ggml-org/llama.cpp:server
+    build:
+      context: /home/user/Github/llama.cpp
+      dockerfile: Dockerfile.local
     profiles: ["manual"]
     restart: "no"
     healthcheck:
@@ -515,7 +533,9 @@ services:
       - "TS_EXTRA_ARGS=--advertise-tags=tag:container --netfilter-mode=off"
   llama-cpp-4:
     container_name: ${LLAMA_NAME_4}
-    image: ghcr.io/ggml-org/llama.cpp:server
+    build:
+      context: /home/user/Github/llama.cpp
+      dockerfile: Dockerfile.local
     profiles: ["manual"]
     restart: "no"
     healthcheck:
@@ -690,6 +710,36 @@ services:
               count: all
               capabilities: [gpu]
 
+# 15th service: LiteLLM Gateway
+  ts-litellm:
+    container_name: ts-litellm
+    hostname: litellm
+    image: tailscale/tailscale:latest
+    restart: unless-stopped
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+    volumes:
+      - ts-litellm:/var/lib/tailscale
+      - ./config:/config
+      - /dev/net/tun:/dev/net/tun
+    environment:
+      - TS_STATE_DIR=/var/lib/tailscale
+      - TS_AUTH_KEY=${TS_AUTH_KEY}
+      - TS_USERSPACE=false
+      - TS_SERVE_CONFIG=/config/litellm.json
+      - "TS_EXTRA_ARGS=--advertise-tags=tag:container --netfilter-mode=off"
+  litellm:
+    container_name: litellm
+    image: ghcr.io/berriai/litellm:latest
+    restart: unless-stopped
+    network_mode: service:ts-litellm
+    depends_on:
+      - ts-litellm
+    volumes:
+      - ./config/litellm-config.yaml:/app/config.yaml:ro
+    command: --config /app/config.yaml --port 4000
+
 volumes:
   ts-open-webui: 
     driver: local
@@ -728,4 +778,6 @@ volumes:
   ts-kokoro:
     driver: local
   ts-metatonic:
+    driver: local
+  ts-litellm:
     driver: local
