@@ -7,6 +7,48 @@
 
 name: aots-ai-config
 
+x-shared-dify-env: &dify-env
+  DEPLOY_ENV: PRODUCTION
+  CONSOLE_API_URL: ""
+  SERVER_CONSOLE_API_URL: http://dify-api:5001
+  CONSOLE_WEB_URL: ""
+  SERVICE_API_URL: ""
+  APP_API_URL: ""
+  APP_WEB_URL: ""
+  NEXT_PUBLIC_SOCKET_URL: ws://dify
+  SECRET_KEY: lYkiYYT6owG+71oLerGzA7GXCgOT++6ovaezWAjpCjf+Sjc3ZtU+qUEi
+  INIT_PASSWORD: ""
+  MIGRATION_ENABLED: "true"
+  LOG_LEVEL: INFO
+  DIFY_BIND_ADDRESS: 0.0.0.0
+  DIFY_PORT: 5001
+  DB_TYPE: postgresql
+  DB_USERNAME: postgres
+  DB_PASSWORD: difyai123456
+  DB_HOST: dify-db
+  DB_PORT: 5432
+  DB_DATABASE: dify
+  REDIS_HOST: dify-redis
+  REDIS_PORT: 6379
+  REDIS_PASSWORD: difyai123456
+  REDIS_DB: 0
+  CELERY_BROKER_URL: redis://:difyai123456@dify-redis:6379/1
+  CELERY_BACKEND: redis
+  STORAGE_TYPE: opendal
+  OPENDAL_SCHEME: fs
+  OPENDAL_FS_ROOT: storage
+  VECTOR_STORE: weaviate
+  WEAVIATE_ENDPOINT: http://dify-weaviate:8080
+  WEAVIATE_API_KEY: WVF5YThaHlkYwhGUSmCRgsX3tD5ngdN8pkih
+  CODE_EXECUTION_ENDPOINT: http://dify-sandbox:8194
+  CODE_EXECUTION_API_KEY: dify-sandbox
+  SSRF_PROXY_HTTP_URL: http://dify-ssrf-proxy:3128
+  SSRF_PROXY_HTTPS_URL: http://dify-ssrf-proxy:3128
+  PLUGIN_DAEMON_URL: http://dify-plugin-daemon:5002
+  PLUGIN_DAEMON_KEY: lYkiYYT6owG+71oLerGzA7GXCgOT++6ovaezWAjpCjf+Sjc3ZtU+qUEi
+  PLUGIN_DAEMON_TIMEOUT: 600.0
+  INNER_API_KEY_FOR_PLUGIN: QaHbTe77CtuXmsfyhR7+vRjI/+XbV1AaFy691iy+kGDv2Jvy0/eAh8Y1
+
 services:
 
 # 1st service with Tailscale and GPU access for OpenWebUI
@@ -879,6 +921,7 @@ services:
       PGDATA: /var/lib/postgresql/data/pgdata
     volumes:
       - dify_db_data:/var/lib/postgresql/data
+      - ./config/dify-db-init.sh:/docker-entrypoint-initdb.d/create-plugin-db.sh:ro
     healthcheck:
       test: ["CMD", "pg_isready", "-U", "postgres", "-d", "dify"]
       interval: 5s
@@ -964,45 +1007,16 @@ services:
     image: langgenius/dify-api:1.14.2
     restart: always
     environment:
+      <<: *dify-env
       MODE: api
-      DEPLOY_ENV: PRODUCTION
-      CONSOLE_API_URL: ""
-      SERVER_CONSOLE_API_URL: http://dify-api:5001
-      CONSOLE_WEB_URL: ""
-      SERVICE_API_URL: ""
-      APP_API_URL: ""
-      APP_WEB_URL: ""
-      NEXT_PUBLIC_SOCKET_URL: ws://dify
-      SECRET_KEY: lYkiYYT6owG+71oLerGzA7GXCgOT++6ovaezWAjpCjf+Sjc3ZtU+qUEi
-      INIT_PASSWORD: ""
-      MIGRATION_ENABLED: "true"
-      LOG_LEVEL: INFO
-      DIFY_BIND_ADDRESS: 0.0.0.0
-      DIFY_PORT: 5001
-      DB_TYPE: postgresql
-      DB_USERNAME: postgres
-      DB_PASSWORD: difyai123456
-      DB_HOST: dify-db
-      DB_PORT: 5432
-      DB_DATABASE: dify
-      REDIS_HOST: dify-redis
-      REDIS_PORT: 6379
-      REDIS_PASSWORD: difyai123456
-      REDIS_DB: 0
-      CELERY_BROKER_URL: redis://:difyai123456@dify-redis:6379/1
-      CELERY_BACKEND: redis
-      STORAGE_TYPE: opendal
-      OPENDAL_SCHEME: fs
-      OPENDAL_FS_ROOT: storage
-      VECTOR_STORE: weaviate
-      WEAVIATE_ENDPOINT: http://dify-weaviate:8080
-      WEAVIATE_API_KEY: WVF5YThaHlkYwhGUSmCRgsX3tD5ngdN8pkih
-      CODE_EXECUTION_ENDPOINT: http://dify-sandbox:8194
-      CODE_EXECUTION_API_KEY: dify-sandbox
-      SSRF_PROXY_HTTP_URL: http://dify-ssrf-proxy:3128
-      SSRF_PROXY_HTTPS_URL: http://dify-ssrf-proxy:3128
     volumes:
       - dify_api_storage:/app/api/storage
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5001/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
     depends_on:
       dify-init-permissions:
         condition: service_completed_successfully
@@ -1016,43 +1030,8 @@ services:
     image: langgenius/dify-api:1.14.2
     restart: always
     environment:
+      <<: *dify-env
       MODE: worker
-      DEPLOY_ENV: PRODUCTION
-      CONSOLE_API_URL: ""
-      SERVER_CONSOLE_API_URL: http://dify-api:5001
-      CONSOLE_WEB_URL: ""
-      SERVICE_API_URL: ""
-      APP_API_URL: ""
-      APP_WEB_URL: ""
-      NEXT_PUBLIC_SOCKET_URL: ws://dify
-      SECRET_KEY: lYkiYYT6owG+71oLerGzA7GXCgOT++6ovaezWAjpCjf+Sjc3ZtU+qUEi
-      INIT_PASSWORD: ""
-      MIGRATION_ENABLED: "true"
-      LOG_LEVEL: INFO
-      DIFY_BIND_ADDRESS: 0.0.0.0
-      DIFY_PORT: 5001
-      DB_TYPE: postgresql
-      DB_USERNAME: postgres
-      DB_PASSWORD: difyai123456
-      DB_HOST: dify-db
-      DB_PORT: 5432
-      DB_DATABASE: dify
-      REDIS_HOST: dify-redis
-      REDIS_PORT: 6379
-      REDIS_PASSWORD: difyai123456
-      REDIS_DB: 0
-      CELERY_BROKER_URL: redis://:difyai123456@dify-redis:6379/1
-      CELERY_BACKEND: redis
-      STORAGE_TYPE: opendal
-      OPENDAL_SCHEME: fs
-      OPENDAL_FS_ROOT: storage
-      VECTOR_STORE: weaviate
-      WEAVIATE_ENDPOINT: http://dify-weaviate:8080
-      WEAVIATE_API_KEY: WVF5YThaHlkYwhGUSmCRgsX3tD5ngdN8pkih
-      CODE_EXECUTION_ENDPOINT: http://dify-sandbox:8194
-      CODE_EXECUTION_API_KEY: dify-sandbox
-      SSRF_PROXY_HTTP_URL: http://dify-ssrf-proxy:3128
-      SSRF_PROXY_HTTPS_URL: http://dify-ssrf-proxy:3128
     volumes:
       - dify_api_storage:/app/api/storage
     depends_on:
@@ -1068,43 +1047,8 @@ services:
     image: langgenius/dify-api:1.14.2
     restart: always
     environment:
+      <<: *dify-env
       MODE: beat
-      DEPLOY_ENV: PRODUCTION
-      CONSOLE_API_URL: ""
-      SERVER_CONSOLE_API_URL: http://dify-api:5001
-      CONSOLE_WEB_URL: ""
-      SERVICE_API_URL: ""
-      APP_API_URL: ""
-      APP_WEB_URL: ""
-      NEXT_PUBLIC_SOCKET_URL: ws://dify
-      SECRET_KEY: lYkiYYT6owG+71oLerGzA7GXCgOT++6ovaezWAjpCjf+Sjc3ZtU+qUEi
-      INIT_PASSWORD: ""
-      MIGRATION_ENABLED: "true"
-      LOG_LEVEL: INFO
-      DIFY_BIND_ADDRESS: 0.0.0.0
-      DIFY_PORT: 5001
-      DB_TYPE: postgresql
-      DB_USERNAME: postgres
-      DB_PASSWORD: difyai123456
-      DB_HOST: dify-db
-      DB_PORT: 5432
-      DB_DATABASE: dify
-      REDIS_HOST: dify-redis
-      REDIS_PORT: 6379
-      REDIS_PASSWORD: difyai123456
-      REDIS_DB: 0
-      CELERY_BROKER_URL: redis://:difyai123456@dify-redis:6379/1
-      CELERY_BACKEND: redis
-      STORAGE_TYPE: opendal
-      OPENDAL_SCHEME: fs
-      OPENDAL_FS_ROOT: storage
-      VECTOR_STORE: weaviate
-      WEAVIATE_ENDPOINT: http://dify-weaviate:8080
-      WEAVIATE_API_KEY: WVF5YThaHlkYwhGUSmCRgsX3tD5ngdN8pkih
-      CODE_EXECUTION_ENDPOINT: http://dify-sandbox:8194
-      CODE_EXECUTION_API_KEY: dify-sandbox
-      SSRF_PROXY_HTTP_URL: http://dify-ssrf-proxy:3128
-      SSRF_PROXY_HTTPS_URL: http://dify-ssrf-proxy:3128
     depends_on:
       dify-db:
         condition: service_healthy
@@ -1121,6 +1065,45 @@ services:
       APP_API_URL: ""
       NEXT_PUBLIC_SOCKET_URL: ws://dify
       NEXT_TELEMETRY_DISABLED: "0"
+
+  dify-plugin-daemon:
+    container_name: dify-plugin-daemon
+    image: langgenius/dify-plugin-daemon:0.6.1-local
+    restart: always
+    environment:
+      DB_USERNAME: postgres
+      DB_PASSWORD: difyai123456
+      DB_HOST: dify-db
+      DB_PORT: 5432
+      DB_DATABASE: dify_plugin
+      DB_SSL_MODE: disable
+      SERVER_PORT: 5002
+      SERVER_KEY: lYkiYYT6owG+71oLerGzA7GXCgOT++6ovaezWAjpCjf+Sjc3ZtU+qUEi
+      MAX_PLUGIN_PACKAGE_SIZE: 52428800
+      PPROF_ENABLED: "false"
+      DIFY_INNER_API_URL: http://dify-api:5001
+      DIFY_INNER_API_KEY: QaHbTe77CtuXmsfyhR7+vRjI/+XbV1AaFy691iy+kGDv2Jvy0/eAh8Y1
+      PLUGIN_REMOTE_INSTALLING_HOST: 0.0.0.0
+      PLUGIN_REMOTE_INSTALLING_PORT: 5003
+      PLUGIN_WORKING_PATH: /app/storage/cwd
+      FORCE_VERIFYING_SIGNATURE: "true"
+      PYTHON_ENV_INIT_TIMEOUT: 120
+      PLUGIN_MAX_EXECUTION_TIMEOUT: 600
+      PLUGIN_STORAGE_TYPE: local
+      PLUGIN_STORAGE_LOCAL_ROOT: /app/storage
+      PLUGIN_INSTALLED_PATH: plugin
+      PLUGIN_PACKAGE_CACHE_PATH: plugin_packages
+      PLUGIN_MEDIA_CACHE_PATH: assets
+      REDIS_HOST: dify-redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: difyai123456
+    volumes:
+      - dify_plugin_storage:/app/storage
+    depends_on:
+      dify-db:
+        condition: service_healthy
+      dify-redis:
+        condition: service_started
 
 volumes:
   ts-open-webui: 
@@ -1176,4 +1159,6 @@ volumes:
   dify_weaviate_data:
     driver: local
   dify_api_storage:
+    driver: local
+  dify_plugin_storage:
     driver: local
