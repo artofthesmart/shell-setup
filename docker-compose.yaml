@@ -360,6 +360,52 @@ services:
       # Theme source directory mounted so symlinks inside the container can resolve it
       - /home/user/Github/hypertext:/home/user/Github/hypertext:ro
 
+# Grav 1.7 version.
+  ts-grav17:
+    container_name: ts-grav17
+    hostname: grav17
+    image: tailscale/tailscale:latest
+    restart: unless-stopped
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+    volumes:
+      - ts-grav17-control:/var/lib/tailscale
+      - ./config:/config
+      - /dev/net/tun:/dev/net/tun
+    environment:
+      - TS_STATE_DIR=/var/lib/tailscale
+      - TS_AUTH_KEY=${TS_AUTH_KEY}
+      - TS_USERSPACE=false
+      - TS_SERVE_CONFIG=/config/grav17.json
+      - "TS_EXTRA_ARGS=--advertise-tags=tag:container --netfilter-mode=off"
+  grav17:
+    container_name: grav17
+    # Custom build extending getgrav/grav:latest.
+    # We use this instead of the off-the-shelf image directly so we get
+    # the PGID remap and custom_base_url injection from docker-entrypoint.sh.
+    build:
+      context: ./config/grav
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    network_mode: service:ts-grav17
+    depends_on:
+      - ts-grav17
+    environment:
+      - GRAV_SCHEDULER=true
+      # Public-facing URL injected into system.yaml so the admin2 SPA knows
+      # the correct serverUrl when Apache sits behind the Tailscale sidecar.
+      - GRAV_BASE_URL=https://grav17.bombay-climb.ts.net
+      # Shared group (grav-data, GID 1033) gives www-data write access to the
+      # workspace without changing its UID — the container process stays as
+      # UID 33, not the host user, for better containment on escape.
+      - PGID=1033
+    volumes:
+      # Main Grav workspace (user content, config, plugins, etc.)
+      - /home/user/grav17_workspace:/var/www/html
+      # Theme source directory mounted so symlinks inside the container can resolve it
+      - /home/user/Github/hypertext:/home/user/Github/hypertext:ro
+
 # 8th service: llama.cpp Instance 1
   ts-llama-cpp-1:
     container_name: ts-${LLAMA_NAME_1}
@@ -562,6 +608,56 @@ services:
     volumes:
       - /var/lib/ai-models/llama:/models
 
+# 11.5th service: llama.cpp Instance 5 (Qwen3-Next-80B)
+  ts-llama-cpp-5:
+    container_name: ts-${LLAMA_NAME_5}
+    hostname: ${LLAMA_NAME_5}
+    image: tailscale/tailscale:latest
+    restart: unless-stopped
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+    volumes:
+      - ts-llama-cpp-5:/var/lib/tailscale
+      - ./config:/config
+      - /dev/net/tun:/dev/net/tun
+    environment:
+      - TS_STATE_DIR=/var/lib/tailscale
+      - TS_AUTH_KEY=${TS_AUTH_KEY}
+      - TS_USERSPACE=false
+      - TS_SERVE_CONFIG=/config/llama-cpp-5.json
+      - "TS_EXTRA_ARGS=--advertise-tags=tag:container --netfilter-mode=off"
+  llama-cpp-5:
+    container_name: ${LLAMA_NAME_5}
+    build:
+      context: /home/user/Github/llama.cpp
+      dockerfile: Dockerfile.local
+    profiles: ["manual"]
+    restart: "no"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 300s
+    network_mode: service:ts-llama-cpp-5
+    depends_on:
+      - ts-llama-cpp-5
+    devices:
+      - /dev/dri:/dev/dri
+    cap_add:
+      - IPC_LOCK
+    mem_limit: 86g
+    memswap_limit: 86g
+    environment:
+      - LLAMA_ARG_HOST=0.0.0.0
+      - HF_TOKEN=${HF_TOKEN}
+      - HF_HOME=/models/cache
+      - LLAMA_CACHE=/models/cache
+    command: --hf-repo ${LLAMA_HF_REPO_5} --hf-file ${LLAMA_HF_FILE_5} -c 262144 --port 8080 -t 16 --temp 1.0 --top-p 0.95 --min-p 0.01 --top-k 40
+    volumes:
+      - /var/lib/ai-models/llama:/models
+
 # 12th service: Portainer for GUI management
   ts-portainer:
     container_name: ts-portainer
@@ -755,6 +851,8 @@ volumes:
     driver: local
   ts-grav-control:
     driver: local
+  ts-grav17-control:
+    driver: local
   ts-llama-cpp-1:
     driver: local
   ts-llama-cpp-2:
@@ -762,6 +860,8 @@ volumes:
   ts-llama-cpp-3:
     driver: local
   ts-llama-cpp-4:
+    driver: local
+  ts-llama-cpp-5:
     driver: local
   ts-vert:
     driver: local

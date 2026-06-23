@@ -9,7 +9,7 @@ model_list:
       max_tokens: 64000
   - model_name: flash-llm
     litellm_params:
-      model: openai/flash-llm
+      model: openai/flash-llm # Tells LiteLLM it's an OpenAI-like API, triggering extra compatibility checks
       api_base: https://flash-llm.bombay-climb.ts.net/v1
       api_key: "none"
     model_info:
@@ -25,6 +25,13 @@ model_list:
     litellm_params:
       model: openai/mini-llm
       api_base: https://mini-llm.bombay-climb.ts.net/v1
+      api_key: "none"
+    model_info:
+      max_tokens: 262144
+  - model_name: next-llm
+    litellm_params:
+      model: openai/next-llm
+      api_base: https://next-llm.bombay-climb.ts.net/v1
       api_key: "none"
     model_info:
       max_tokens: 262144
@@ -58,6 +65,13 @@ model_list:
       api_key: "none"
     model_info:
       max_tokens: 262144
+  - model_name: llama-cpp
+    litellm_params:
+      model: openai/next-llm
+      api_base: https://next-llm.bombay-climb.ts.net/v1
+      api_key: "none"
+    model_info:
+      max_tokens: 262144
 
 router_settings:
   routing_strategy: simple-shuffle
@@ -68,3 +82,7 @@ litellm_settings:
   # Tailscale TLS certs are not in the container's default CA store.
   # Connections are already secured by Tailscale's ACLs.
   ssl_verify: false
+  
+  # Force incoming agent/response calls down to classic chat completion schemas
+  drop_params: true
+
